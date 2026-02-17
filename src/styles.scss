@@ -2,6 +2,48 @@
 @import 'bootstrap/dist/css/bootstrap.min.css';
 @import '@ng-select/ng-select/themes/default.theme.css';
 
+/* ─── Fonts: Circular Std ─── */
+/* Font weight regular */
+@font-face {
+  font-family: 'Circular-Std';
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("https://naologic-com-assets.naologic.com/fonts/circular-std/circular-std-regular.woff2") format('woff2');
+}
+/* Font weight regular-semibold (500) */
+@font-face {
+  font-family: 'Circular-Std';
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  src: url("https://naologic-com-assets.naologic.com/fonts/circular-std/circular-std-book.woff2") format('woff2');
+}
+/* Font weight semi bold (600) */
+@font-face {
+  font-family: 'Circular-Std';
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url("https://naologic-com-assets.naologic.com/fonts/circular-std/circular-std-medium.woff2") format('woff2');
+}
+/* Font weight bold (700) */
+@font-face {
+  font-family: 'Circular-Std';
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url("https://naologic-com-assets.naologic.com/fonts/circular-std/circular-std-bold.woff2") format('woff2');
+}
+/* Font weight extra bold (800) */
+@font-face {
+  font-family: 'Circular-Std';
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+  src: url("https://naologic-com-assets.naologic.com/fonts/circular-std/circular-std-black.woff2") format('woff2');
+}
+
 /* ─── Custom Naologic Theme ─── */
 html,
 body {
@@ -25,4 +67,18 @@ body {
 app-root {
   display: block;
   min-height: 100vh;
+}
+
+/* ─── Offcanvas Custom Width ─── */
+.work-order-offcanvas {
+  width: 480px !important;
+  border-left: 1px solid #e8e8f0;
+  box-shadow: -4px 0 24px rgba(80, 70, 229, 0.12);
+}
+
+.work-order-offcanvas .offcanvas-body {
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden; /* Let child (panel-body) handle scrolling */
 }

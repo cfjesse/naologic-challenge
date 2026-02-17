@@ -29,19 +29,24 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
 .timeline-header {
   padding: 24px 32px 16px;
   display: flex;
-  align-items: center;
+  align-items: flex-end; /* Align bottom of left/right groups */
   justify-content: space-between;
 }
 
+.header-content-left {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .brand {
-  position: absolute;
-  top: 28px;
-  left: 32px;
+  /* relative to flow now */
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 1.6px;
   color: #5046e5;
   text-transform: uppercase;
+  margin-bottom: 4px;
 }
 
 .brand-accent {
@@ -53,13 +58,19 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   font-size: 26px;
   font-weight: 700;
   color: #1b1f3b;
-  margin: 28px 0 0; /* Push down below absolute brand */
+  margin: 0;
+  line-height: 1.2;
 }
 
 /* ──────── Timescale Dropdown (ng-select) ──────── */
+.timescale-wrapper {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+}
+
 .timescale-control {
-  margin-top: 28px;
-  min-width: 140px;
+  min-width: 160px;
 }
 
 ::ng-deep .ng-select.timescale-select .ng-select-container {
@@ -77,6 +88,16 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
 
 ::ng-deep .ng-select.timescale-select .ng-value-container {
   padding-left: 12px;
+  display: flex; 
+  align-items: center;
+}
+
+.timescale-label {
+  font-family: $font-family;
+  font-size: 13px;
+  font-weight: 400; /* Regular weight for label */
+  color: #8b8fa3;
+  margin-right: 6px;
 }
 
 .timescale-value {
@@ -95,6 +116,31 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
 
 ::ng-deep .ng-select.timescale-select .ng-arrow-wrapper .ng-arrow {
   border-color: #5046e5 transparent transparent;
+}
+
+/* ──────── Today Button ──────── */
+.btn-today {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 6px;
+  border: 1px solid #e8e8f0;
+  background: #ffffff;
+  color: #1b1f3b;
+  font-family: $font-family;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  
+  &:hover {
+    border-color: #5046e5;
+    color: #5046e5;
+    background: #f7f7fb;
+  }
+  
+  &:active {
+    background: #efeff5;
+  }
 }
 
 /* ──────── Gantt Wrapper ──────── */
@@ -151,7 +197,7 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
 .right-panel {
   flex: 1;
   position: relative;
-  overflow-x: auto;
+  /* overflow-x handled by gantt-wrapper */
   min-width: 0;
 }
 
@@ -161,6 +207,8 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   height: 48px;
   background: #f7f7fb;
   border-bottom: 1px solid #e8e8f0;
+  min-width: 100%;
+  width: fit-content;
 }
 
 .col-header {
@@ -204,6 +252,8 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   position: relative;
   border-bottom: 1px solid #f0f0f6;
   cursor: pointer;
+  min-width: 100%;
+  width: fit-content;
 
   &.even {
     background: #fafafd;
@@ -253,24 +303,28 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
 }
 
 /* Bar color variants */
+/* Bar color variants - Matches text color but lighter bg */
 .bar-complete {
   background: #e8f5e9;
   border: 1px solid #a5d6a7;
 }
 
 .bar-in-progress {
-  background: #ede7f6;
-  border: 1px solid #b39edb;
+  /* Purple */
+  background: #f2efff;
+  border: 1px solid #dcd3ff;
 }
 
 .bar-open {
-  background: #ede7f6;
-  border: 1px solid #b39edb;
+  /* Brand Blue */
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
 }
 
 .bar-blocked {
-  background: #ede7f6;
-  border: 1px solid #b39edb;
+  /* Orange */
+  background: #fff8e1;
+  border: 1px solid #ffe082;
 }
 
 .bar-title {
@@ -288,36 +342,37 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
 /* ──────── Status Badges ──────── */
 .bar-status {
   font-family: $font-family;
-  font-size: 10px;
+  font-size: 11px; /* Slightly larger for readability? Or 10px? User said "look like images". */
   font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 10px;
+  padding: 2px 6px; /* Tighter padding for 4px radius look */
+  border-radius: 4px; /* Requested 4px */
   white-space: nowrap;
   flex-shrink: 0;
+  line-height: 1.2;
 }
 
 .status-complete {
-  color: #43a047;
-  background: #e8f5e9;
-  border: 1px solid #a5d6a7;
+  color: #2e7d32;
+  background-color: rgba(46, 125, 50, 0.12); /* Lighter shade of text color */
+  border: 1px solid rgba(46, 125, 50, 0.2);
 }
 
 .status-in-progress {
-  color: #5046e5;
-  background: #ede7f6;
-  border: 1px solid #b39edb;
+  color: #7b61ff;
+  background-color: rgba(123, 97, 255, 0.12);
+  border: 1px solid rgba(123, 97, 255, 0.2);
 }
 
 .status-open {
   color: #5046e5;
-  background: #ede7f6;
-  border: 1px solid #b39edb;
+  background-color: rgba(80, 70, 229, 0.12);
+  border: 1px solid rgba(80, 70, 229, 0.2);
 }
 
 .status-blocked {
-  color: #e6a817;
-  background: #fff8e1;
-  border: 1px solid #f5dfa0;
+  color: #f57f17;
+  background-color: rgba(245, 127, 23, 0.12);
+  border: 1px solid rgba(245, 127, 23, 0.2);
 }
 
 /* ──────── 3-dot Ellipsis Button ──────── */

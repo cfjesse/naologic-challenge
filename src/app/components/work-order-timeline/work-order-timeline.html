@@ -1,26 +1,37 @@
-<div class="timeline-container" [class.panel-open]="panelVisible()">
+<div class="timeline-container">
+  <!-- Header -->
   <!-- Header -->
   <header class="timeline-header">
-    <span class="brand">NAO<span class="brand-accent">LOGIC</span></span>
-    <h1 class="page-title">Work Orders</h1>
-    <div class="timescale-control">
-      <!-- ng-select for timescale -->
-      <ng-select class="timescale-select" [items]="timeScaleOptions" [clearable]="false" [searchable]="false"
-        [ngModel]="timeScale()" (ngModelChange)="onTimeScaleChange($event)" [title]="'Select timescale'">
+    <div class="header-content-left">
+      <span class="brand">NAO<span class="brand-accent">LOGIC</span></span>
+      <h1 class="page-title">Work Orders</h1>
 
-        <ng-template ng-label-tmp let-item="item">
-          <span class="timescale-value">{{ item }}</span>
-        </ng-template>
+      <div class="timescale-wrapper">
+        <div class="timescale-control">
+          <!-- ng-select for timescale -->
+          <ng-select class="timescale-select" [items]="timeScaleOptions" [clearable]="false" [searchable]="false"
+            [ngModel]="timeScale()" (ngModelChange)="onTimeScaleChange($event)" [title]="'Select timescale'">
 
-        <ng-template ng-option-tmp let-item="item">
-          <span class="timescale-option">{{ item }}</span>
-        </ng-template>
-      </ng-select>
+            <ng-template ng-label-tmp let-item="item">
+              <span class="timescale-label">Timescale</span>
+              <span class="timescale-value">{{ item }}</span>
+            </ng-template>
+
+            <ng-template ng-option-tmp let-item="item">
+              <span class="timescale-option">{{ item }}</span>
+            </ng-template>
+          </ng-select>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-content-right">
+      <button class="btn-today" (click)="centerViewportOnToday()">Today</button>
     </div>
   </header>
 
   <!-- Gantt Grid -->
-  <div class="gantt-wrapper">
+  <div class="gantt-wrapper" #ganttWrapper (scroll)="onGanttScroll($event)">
     <!-- Left panel: Work Centers -->
     <div class="left-panel">
       <div class="left-header">Work Center</div>
@@ -36,7 +47,7 @@
       <!-- Column headers -->
       <div class="column-headers"
         [style.grid-template-columns]="'repeat(' + columns().length + ', minmax(' + columnMinWidth() + 'px, 1fr))'">
-        @for (col of columns(); track col.label) {
+        @for (col of columns(); track col.date) {
         <div class="col-header" [class.current-period]="col.isCurrentPeriod">
           <span class="col-label">{{ col.label }}</span>
           @if (col.isCurrentPeriod) {
@@ -53,7 +64,7 @@
         (mousedown)="onTimelineMouseDown($event, wc.docId)" (mouseup)="onTimelineMouseUp($event, wc.docId)"
         (mousemove)="onTimelineMouseMove($event)" (mouseleave)="onTimelineMouseLeave()">
         <!-- Grid columns -->
-        @for (col of columns(); track col.label) {
+        @for (col of columns(); track col.date) {
         <div class="grid-cell" [class.current-period]="col.isCurrentPeriod"></div>
         }
 
@@ -71,7 +82,8 @@
           </span>
 
           <!-- 3-dot ellipsis button -->
-          <button class="bar-ellipsis" (click)="onEllipsisClick($event, order)" type="button">
+          <button class="bar-ellipsis" (click)="onEllipsisClick($event, order)" (mousedown)="$event.stopPropagation()"
+            type="button">
             ⋯
           </button>
 
@@ -81,7 +93,8 @@
 
         <!-- Ellipsis dropdown menu -->
         @if (activeMenu()?.orderId === order.docId) {
-        <div class="ellipsis-dropdown" [style.left.%]="getBarLeft(order) + getBarWidth(order)" [style.top.px]="10">
+        <div class="ellipsis-dropdown" [style.left.%]="getBarLeft(order) + getBarWidth(order)" [style.top.px]="10"
+          (mousedown)="$event.stopPropagation()">
           <button class="dropdown-item" (click)="onMenuEdit(order)">Edit</button>
           <button class="dropdown-item dropdown-item-delete" (click)="onMenuDelete(order)">Delete</button>
         </div>
@@ -112,10 +125,7 @@
 </div>
 
 <!-- Slide-out panel -->
-<app-work-order-panel [visible]="panelVisible()" [mode]="panelMode()" [workOrder]="panelWorkOrder()"
-  [workCenterId]="panelWorkCenterId()" [startDate]="panelStartDate()" [workCenters]="workCenters()"
-  [overlapError]="panelOverlapError()" (save)="onPanelSave($event)" (cancel)="onPanelCancel()">
-</app-work-order-panel>
+
 
 <!-- Confirm Delete Dialog -->
 <app-confirm-dialog [visible]="confirmVisible()" [title]="'Delete Work Order'"

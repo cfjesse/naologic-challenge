@@ -1,10 +1,7 @@
 import {
   Component,
-  EventEmitter,
   Input,
-  OnChanges,
-  Output,
-  SimpleChanges,
+  OnInit,
   HostListener,
   inject,
 } from '@angular/core';
@@ -18,12 +15,13 @@ import {
   ValidationErrors,
 } from '@angular/forms';
 import { NgSelectModule } from '@ng-select/ng-select';
-import { NgbDatepickerModule, NgbDateStruct } from '@ng-bootstrap/ng-bootstrap';
+import { NgbDatepickerModule, NgbDateStruct, NgbActiveOffcanvas } from '@ng-bootstrap/ng-bootstrap';
 import {
   WorkOrderDocument,
   WorkOrderStatus,
   WorkCenterDocument,
 } from '../../models/work-order.model';
+import { WorkOrderService } from '../../services/work-order.service';
 
 /* ── Exported event interfaces ── */
 export interface PanelSaveEvent {
@@ -39,16 +37,8 @@ export interface PanelSaveEvent {
 }
 
 /**
- * WorkOrderPanelComponent — slide-out panel for creating/editing work orders.
- *
- * Uses Reactive Forms with FormGroup and custom validators:
- *  - All fields required
- *  - End date must be after start date (cross-field validator)
- *
- * Status dropdown uses ng-select with colored badge templates.
- * Date fields use ngb-datepicker from @ng-bootstrap.
- *
- * Width: 480px (matches Sketch design reference).
+ * WorkOrderPanelComponent — side panel content for creating/editing work orders.
+ * Now designed to be opened via NgbOffcanvas.
  */
 @Component({
   selector: 'app-work-order-panel',
@@ -57,21 +47,24 @@ export interface PanelSaveEvent {
   templateUrl: './work-order-panel.html',
   styleUrl: './work-order-panel.scss',
 })
-export class WorkOrderPanelComponent implements OnChanges {
+export class WorkOrderPanelComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
+  readonly activeOffcanvas = inject(NgbActiveOffcanvas);
+  private readonly workOrderService = inject(WorkOrderService);
 
-  @Input() visible = false;
   @Input() mode: 'create' | 'edit' = 'create';
   @Input() workOrder: WorkOrderDocument | null = null;
   @Input() workCenterId = '';
   @Input() startDate = '';
-  @Input() workCenters: WorkCenterDocument[] = [];
-  @Input() overlapError = '';
+  
+  overlapError = '';
+  // Note: workCenters list might not be needed if not used in dropdown, usually overlap check is in service
+  // checking panel usage... it seems it doesn't use workCenters for display?
+  // Ah, the original panel didn't show a work center selector, it was inferred from the row clicked.
+  // But for Edit mode, maybe we want to move it? The design only showed Status, Name, Dates.
+  // Let's keep it simple as per original design.
 
-  @Output() save = new EventEmitter<PanelSaveEvent>();
-  @Output() cancel = new EventEmitter<void>();
-
-  /** Status options for ng-select with color metadata */
+  /** Status options */
   readonly statusOptions: { value: WorkOrderStatus; label: string; colorClass: string }[] = [
     { value: 'open', label: 'Open', colorClass: 'status-open' },
     { value: 'in-progress', label: 'In Progress', colorClass: 'status-in-progress' },
@@ -79,7 +72,7 @@ export class WorkOrderPanelComponent implements OnChanges {
     { value: 'blocked', label: 'Blocked', colorClass: 'status-blocked' },
   ];
 
-  /** Reactive form with cross-field date validation */
+  /** Reactive form */
   form: FormGroup = this.fb.group({
     name: ['', Validators.required],
     status: ['open' as WorkOrderStatus, Validators.required],
@@ -89,28 +82,19 @@ export class WorkOrderPanelComponent implements OnChanges {
     validators: [this.dateRangeValidator],
   });
 
-  /** Whether form has been submitted (to show validation errors) */
   submitted = false;
 
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes['visible'] && this.visible) {
-      this.submitted = false;
-      this.resetForm();
-    }
+  ngOnInit(): void {
+    this.resetForm();
   }
 
-  /** Escape key closes panel */
+  /** Escape key closes panel (handled by offcanvas too, but good backup) */
   @HostListener('document:keydown.escape')
   onEscapeKey(): void {
-    if (this.visible) {
-      this.cancel.emit();
-    }
+    this.activeOffcanvas.dismiss('Escape');
   }
 
-  /**
-   * Cross-field validator: ensures endDate is strictly after startDate.
-   * This runs at the FormGroup level so it can access both controls.
-   */
+  /* ── Validation ── */
   private dateRangeValidator(group: AbstractControl): ValidationErrors | null {
     const startVal = group.get('startDate')?.value as NgbDateStruct | null;
     const endVal = group.get('endDate')?.value as NgbDateStruct | null;
@@ -144,7 +128,7 @@ export class WorkOrderPanelComponent implements OnChanges {
     }
   }
 
-  /* ── Status badge helper ── */
+  /* ── Helpers ── */
   getStatusClass(status: WorkOrderStatus): string {
     switch (status) {
       case 'open': return 'status-open';
@@ -154,16 +138,7 @@ export class WorkOrderPanelComponent implements OnChanges {
     }
   }
 
-  getStatusLabel(status: WorkOrderStatus): string {
-    switch (status) {
-      case 'open': return 'Open';
-      case 'in-progress': return 'In Progress';
-      case 'complete': return 'Complete';
-      case 'blocked': return 'Blocked';
-    }
-  }
-
-  /* ── Submit ── */
+  /* ── Actions ── */
   onSubmit(): void {
     this.submitted = true;
     if (this.form.invalid) return;
@@ -176,7 +151,21 @@ export class WorkOrderPanelComponent implements OnChanges {
       ? this.workOrder.data.workCenterId
       : this.workCenterId;
 
-    this.save.emit({
+    // Check overlap
+    this.overlapError = '';
+    const overlap = this.workOrderService.checkOverlap(
+      wcId,
+      startIso,
+      endIso,
+      this.mode === 'edit' ? this.workOrder?.docId : undefined
+    );
+
+    if (overlap) {
+      this.overlapError = `Overlap with "${overlap.data.name}" (${overlap.data.startDate} to ${overlap.data.endDate}).`;
+      return;
+    }
+
+    const result: PanelSaveEvent = {
       mode: this.mode,
       docId: this.mode === 'edit' ? this.workOrder?.docId : undefined,
       data: {
@@ -186,29 +175,24 @@ export class WorkOrderPanelComponent implements OnChanges {
         startDate: startIso,
         endDate: endIso,
       },
-    });
+    };
+
+    this.activeOffcanvas.close(result);
   }
 
   onCancel(): void {
-    this.cancel.emit();
+    this.activeOffcanvas.dismiss('Cancel click');
   }
 
-  onOverlayClick(event: MouseEvent): void {
-    if ((event.target as HTMLElement).classList.contains('panel-overlay')) {
-      this.cancel.emit();
-    }
-  }
+  // No manual overlay click handler needed — Offcanvas handles backdrop
 
-  /* ── Date conversion helpers ── */
-
-  /** Convert ISO string "YYYY-MM-DD" to NgbDateStruct */
+  /* ── Date Utils ── */
   private isoToNgb(iso: string): NgbDateStruct | null {
     if (!iso) return null;
     const d = new Date(iso);
     return { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate() };
   }
 
-  /** Convert NgbDateStruct to ISO string "YYYY-MM-DD" */
   private ngbToIso(ngb: NgbDateStruct): string {
     const y = ngb.year;
     const m = String(ngb.month).padStart(2, '0');
@@ -216,7 +200,6 @@ export class WorkOrderPanelComponent implements OnChanges {
     return `${y}-${m}-${d}`;
   }
 
-  /** Add days to an ISO date string, return new ISO string */
   private addDays(iso: string, days: number): string {
     const d = new Date(iso);
     d.setDate(d.getDate() + days);

@@ -32,7 +32,7 @@ An interactive timeline component for visualizing and managing work orders acros
 
 ### Component Structure
 - `WorkOrderTimelineComponent`: The main orchestrator. Handles D3 timescale logic, viewport calculations, and drag-and-drop events.
-- `WorkOrderPanelComponent`: A slide-out panel for Create/Edit forms. Uses **Reactive Forms** for validation (e.g., end date > start date).
+- `WorkOrderPanelComponent`: A slide-out panel for Create/Edit forms, powered by **NgbOffcanvas**. Uses **Reactive Forms** for validation (e.g., end date > start date).
 - `WorkOrderService`: A centralized signal-based store for data management and business logic (like overlap detection).
 
 ### Key Decisions

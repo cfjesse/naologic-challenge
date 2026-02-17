@@ -1,114 +1,107 @@
-<!-- Slide-out panel overlay + panel -->
-@if (visible) {
-<div class="panel-overlay" (click)="onOverlayClick($event)">
-  <div class="slide-panel" role="dialog" aria-label="Work Order Details">
-    <!-- Panel header -->
-    <div class="panel-header">
-      <div class="panel-header-left">
-        <h2 class="panel-title">Work Order Details</h2>
-        <p class="panel-subtitle">Specify the dates, name and status for this order</p>
-      </div>
-      <div class="panel-header-right">
-        <button type="button" class="btn-panel-cancel" (click)="onCancel()">Cancel</button>
-        <button type="button" class="btn-panel-submit" [disabled]="form.invalid && submitted" (click)="onSubmit()">
-          {{ mode === 'edit' ? 'Save' : 'Create' }}
-        </button>
-      </div>
-    </div>
-
-    <!-- Panel body -->
-    <div class="panel-body">
-      <form [formGroup]="form" (ngSubmit)="onSubmit()" autocomplete="off">
-        <!-- Work Order Name -->
-        <div class="form-group">
-          <label class="form-label" for="wo-name">Work Order Name</label>
-          <input id="wo-name" type="text" class="form-control" [class.invalid]="submitted && form.get('name')?.invalid"
-            formControlName="name" placeholder="Enter work order name" />
-          @if (submitted && form.get('name')?.hasError('required')) {
-          <span class="field-error">Work order name is required</span>
-          }
-        </div>
-
-        <!-- Status — ng-select with colored badges -->
-        <div class="form-group">
-          <label class="form-label">Status</label>
-          <ng-select formControlName="status" [items]="statusOptions" bindValue="value" bindLabel="label"
-            [clearable]="false" [searchable]="false" class="status-ng-select" placeholder="Select status">
-
-            <!-- Selected value template -->
-            <ng-template ng-label-tmp let-item="item">
-              <span class="ng-status-badge" [ngClass]="item.colorClass">
-                {{ item.label }}
-              </span>
-            </ng-template>
-
-            <!-- Dropdown option template -->
-            <ng-template ng-option-tmp let-item="item">
-              <span class="ng-status-badge" [ngClass]="item.colorClass">
-                {{ item.label }}
-              </span>
-            </ng-template>
-
-          </ng-select>
-        </div>
-
-        <!-- Start Date — ngb-datepicker -->
-        <div class="form-group">
-          <label class="form-label" for="wo-start">Start date</label>
-          <div class="input-group">
-            <input id="wo-start" class="form-control" [class.invalid]="submitted && form.get('startDate')?.invalid"
-              formControlName="startDate" ngbDatepicker #dpStart="ngbDatepicker" placeholder="YYYY-MM-DD"
-              (click)="dpStart.toggle()" readonly />
-            <button type="button" class="btn-calendar" (click)="dpStart.toggle()">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <rect x="1" y="2.5" width="14" height="12" rx="2" stroke="#8b8fa3" stroke-width="1.2" />
-                <line x1="1" y1="6.5" x2="15" y2="6.5" stroke="#8b8fa3" stroke-width="1.2" />
-                <line x1="5" y1="1" x2="5" y2="4" stroke="#8b8fa3" stroke-width="1.2" stroke-linecap="round" />
-                <line x1="11" y1="1" x2="11" y2="4" stroke="#8b8fa3" stroke-width="1.2" stroke-linecap="round" />
-              </svg>
-            </button>
-          </div>
-          @if (submitted && form.get('startDate')?.hasError('required')) {
-          <span class="field-error">Start date is required</span>
-          }
-        </div>
-
-        <!-- End Date — ngb-datepicker -->
-        <div class="form-group">
-          <label class="form-label" for="wo-end">End date</label>
-          <div class="input-group">
-            <input id="wo-end" class="form-control" [class.invalid]="submitted && form.get('endDate')?.invalid"
-              formControlName="endDate" ngbDatepicker #dpEnd="ngbDatepicker" placeholder="YYYY-MM-DD"
-              (click)="dpEnd.toggle()" readonly />
-            <button type="button" class="btn-calendar" (click)="dpEnd.toggle()">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <rect x="1" y="2.5" width="14" height="12" rx="2" stroke="#8b8fa3" stroke-width="1.2" />
-                <line x1="1" y1="6.5" x2="15" y2="6.5" stroke="#8b8fa3" stroke-width="1.2" />
-                <line x1="5" y1="1" x2="5" y2="4" stroke="#8b8fa3" stroke-width="1.2" stroke-linecap="round" />
-                <line x1="11" y1="1" x2="11" y2="4" stroke="#8b8fa3" stroke-width="1.2" stroke-linecap="round" />
-              </svg>
-            </button>
-          </div>
-          @if (submitted && form.get('endDate')?.hasError('required')) {
-          <span class="field-error">End date is required</span>
-          }
-        </div>
-
-        <!-- Cross-field validation: end must be after start -->
-        @if (submitted && form.hasError('dateRange')) {
-        <div class="overlap-error">
-          End date must be after the start date.
-        </div>
-        }
-
-        <!-- Overlap error from parent -->
-        @if (overlapError) {
-        <div class="overlap-error">
-          {{ overlapError }}
-        </div>
-        }
-      </form>
-    </div>
+<!-- Panel header -->
+<div class="panel-header">
+  <div class="panel-header-left">
+    <h2 class="panel-title" id="offcanvas-basic-title">Work Order Details</h2>
+    <p class="panel-subtitle">Specify the dates, name and status for this order</p>
+  </div>
+  <div class="panel-header-right">
+    <button type="button" class="btn-panel-cancel" (click)="onCancel()">Cancel</button>
+    <button type="button" class="btn-panel-submit" [disabled]="form.invalid && submitted" (click)="onSubmit()">
+      {{ mode === 'edit' ? 'Save' : 'Create' }}
+    </button>
   </div>
 </div>
-}
+
+<!-- Panel body -->
+<div class="panel-body">
+  <form [formGroup]="form" (ngSubmit)="onSubmit()" autocomplete="off">
+    <!-- Work Order Name -->
+    <div class="form-group">
+      <label class="form-label" for="wo-name">Work Order Name</label>
+      <input id="wo-name" type="text" class="form-control" [class.invalid]="submitted && form.get('name')?.invalid"
+        formControlName="name" placeholder="Enter work order name" />
+      @if (submitted && form.get('name')?.hasError('required')) {
+      <span class="field-error">Work order name is required</span>
+      }
+    </div>
+
+    <!-- Status — ng-select with colored badges -->
+    <div class="form-group">
+      <label class="form-label">Status</label>
+      <ng-select formControlName="status" [items]="statusOptions" bindValue="value" bindLabel="label"
+        [clearable]="false" [searchable]="false" class="status-ng-select" placeholder="Select status">
+
+        <!-- Selected value template -->
+        <ng-template ng-label-tmp let-item="item">
+          <span class="ng-status-badge" [ngClass]="item.colorClass">
+            {{ item.label }}
+          </span>
+        </ng-template>
+
+        <!-- Dropdown option template -->
+        <ng-template ng-option-tmp let-item="item">
+          <span class="ng-status-badge" [ngClass]="item.colorClass">
+            {{ item.label }}
+          </span>
+        </ng-template>
+
+      </ng-select>
+    </div>
+
+    <!-- Start Date — ngb-datepicker -->
+    <div class="form-group">
+      <label class="form-label" for="wo-start">Start date</label>
+      <div class="input-group">
+        <input id="wo-start" class="form-control" [class.invalid]="submitted && form.get('startDate')?.invalid"
+          formControlName="startDate" ngbDatepicker #dpStart="ngbDatepicker" placeholder="YYYY-MM-DD"
+          (click)="dpStart.toggle()" readonly />
+        <button type="button" class="btn-calendar" (click)="dpStart.toggle()">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <rect x="1" y="2.5" width="14" height="12" rx="2" stroke="#8b8fa3" stroke-width="1.2" />
+            <line x1="1" y1="6.5" x2="15" y2="6.5" stroke="#8b8fa3" stroke-width="1.2" />
+            <line x1="5" y1="1" x2="5" y2="4" stroke="#8b8fa3" stroke-width="1.2" stroke-linecap="round" />
+            <line x1="11" y1="1" x2="11" y2="4" stroke="#8b8fa3" stroke-width="1.2" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+      @if (submitted && form.get('startDate')?.hasError('required')) {
+      <span class="field-error">Start date is required</span>
+      }
+    </div>
+
+    <!-- End Date — ngb-datepicker -->
+    <div class="form-group">
+      <label class="form-label" for="wo-end">End date</label>
+      <div class="input-group">
+        <input id="wo-end" class="form-control" [class.invalid]="submitted && form.get('endDate')?.invalid"
+          formControlName="endDate" ngbDatepicker #dpEnd="ngbDatepicker" placeholder="YYYY-MM-DD"
+          (click)="dpEnd.toggle()" readonly />
+        <button type="button" class="btn-calendar" (click)="dpEnd.toggle()">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <rect x="1" y="2.5" width="14" height="12" rx="2" stroke="#8b8fa3" stroke-width="1.2" />
+            <line x1="1" y1="6.5" x2="15" y2="6.5" stroke="#8b8fa3" stroke-width="1.2" />
+            <line x1="5" y1="1" x2="5" y2="4" stroke="#8b8fa3" stroke-width="1.2" stroke-linecap="round" />
+            <line x1="11" y1="1" x2="11" y2="4" stroke="#8b8fa3" stroke-width="1.2" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+      @if (submitted && form.get('endDate')?.hasError('required')) {
+      <span class="field-error">End date is required</span>
+      }
+    </div>
+
+    <!-- Cross-field validation: end must be after start -->
+    @if (submitted && form.hasError('dateRange')) {
+    <div class="overlap-error">
+      End date must be after the start date.
+    </div>
+    }
+
+    <!-- Overlap error from parent -->
+    @if (overlapError) {
+    <div class="overlap-error">
+      {{ overlapError }}
+    </div>
+    }
+  </form>
+</div>
