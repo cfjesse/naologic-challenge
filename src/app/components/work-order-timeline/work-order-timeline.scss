@@ -156,6 +156,147 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   }
 }
 
+/* ──────── Cursor Dashboard Card ──────── */
+.cursor-dashboard {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(80, 70, 229, 0.1);
+  border-radius: 0; /* Remove radius for full-width screen feel */
+  padding: 20px 32px;
+  margin: 0; /* Full width */
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  z-index: 10;
+  position: relative;
+  border-left: none;
+  border-right: none;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.date-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.date-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.date-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-main);
+  margin: 0;
+}
+
+.range-context {
+  font-size: 12px;
+  color: var(--color-brand-primary);
+  font-weight: 500;
+}
+
+.active-count {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.count-number {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-text-main);
+  line-height: 1;
+}
+
+.count-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  letter-spacing: 0.5px;
+}
+
+.dashboard-body {
+  border-top: 1px solid var(--color-border-light);
+  padding-top: 12px;
+}
+
+.active-orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.dashboard-order-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--color-bg-row-even);
+  transition: transform 0.15s ease;
+
+  &:hover {
+    transform: translateX(4px);
+    background: #f0f0f8;
+  }
+}
+
+.order-color-pill {
+  width: 4px;
+  height: 24px;
+  border-radius: 2px;
+}
+
+.order-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.order-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-main);
+}
+
+.order-wc {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+}
+
+.ng-status-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.dashboard-empty-state {
+  padding: 12px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
 /* ──────── Gantt Wrapper ──────── */
 .gantt-wrapper {
   display: flex;
@@ -207,21 +348,27 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   flex: 1;
   position: relative;
   /* overflow-x handled by gantt-wrapper */
-  min-width: 100%;
+  min-width: calc(100% - 280px); /* Fill the rest of the flex container */
   width: fit-content;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ──────── Column Headers ──────── */
 .column-headers {
-  display: grid;
   height: 36px;
   background: var(--color-bg-secondary);
   border-bottom: 1px solid var(--color-border-strong);
+  position: relative;
   min-width: 100%;
   width: fit-content;
+  display: block; /* No longer grid */
 }
 
 .col-header {
+  position: absolute;
+  top: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -230,10 +377,13 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   font-size: 12px;
   font-weight: 500;
   color: var(--color-text-secondary);
-  border-right: 1px solid var(--color-border-medium);
+  border-right: 1px solid var(--color-border-light);
+  padding: 0 8px;
+  background: var(--color-bg-secondary);
+  transition: background-color 0.2s ease;
   gap: 2px;
-  padding: 0 4px;
   text-align: center;
+  min-width: 106.25px;
 
   &.current-period {
     background: #fff8e1;
@@ -248,7 +398,7 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
 
 /* ──────── Timeline Rows ──────── */
 .timeline-row {
-  display: grid;
+  display: block; /* No longer grid */
   height: 56px;
   position: relative;
   border-bottom: 1px solid var(--color-border-light);
@@ -266,8 +416,12 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
 }
 
 .grid-cell {
-  border-right: 1px solid var(--color-border-medium);
-
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-right: 1px solid var(--color-border-light);
+  pointer-events: none;
+  min-width: 106.25px;
 
   &.current-period {
     background: rgba(255, 248, 225, 0.18);
@@ -522,19 +676,7 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
 }
 
 /* ──────── Cursor Dashboard Card (Prominent - Below Header) ──────── */
-.cursor-dashboard {
-  margin: 0 32px 24px;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(80, 70, 229, 0.1);
-  border-radius: 16px;
-  padding: 20px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  transition: all 0.3s ease;
-}
+// Redundant styles removed in favor of the one at the top.
 
 .dashboard-header {
   display: flex;
@@ -597,8 +739,8 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
 }
 
 .active-orders-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 
@@ -617,6 +759,15 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
     box-shadow: 0 4px 12px rgba(80, 70, 229, 0.08);
     border-color: var(--color-brand-primary);
   }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out forwards;
 }
 
 .order-color-pill {
@@ -669,10 +820,10 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
 
 /* ──────── Animations ──────── */
 .animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
+  animation: fade-in 0.4s ease-out forwards;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-10px); }
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }

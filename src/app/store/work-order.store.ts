@@ -1,6 +1,6 @@
 import { signalStore, withState, withMethods, withHooks, patchState, withComputed } from '@ngrx/signals';
-import { effect, inject } from '@angular/core';
-import { WorkOrderDocument, WorkCenterDocument, TimeScale } from '../models/work-order.model';
+import { effect, inject, computed } from '@angular/core';
+import { WorkOrderDocument, WorkCenterDocument, TimeScale, WorkOrderStatus } from '../models/work-order.model';
 import { v4 as uuidv4 } from 'uuid';
 
 export type DataSource = 'local' | 'server';
@@ -10,6 +10,7 @@ interface WorkOrderState {
   workCenters: WorkCenterDocument[];
   dataSource: DataSource;
   isLoading: boolean;
+  statusFilter: WorkOrderStatus | 'all';
 }
 
 const STORAGE_KEY = 'naologic_work_orders_v4'; // Bumping for data refresh
@@ -19,17 +20,26 @@ const initialState: WorkOrderState = {
   workCenters: [],
   dataSource: 'local',
   isLoading: false,
+  statusFilter: 'all',
 };
 
 export const WorkOrderStore = signalStore(
   { providedIn: 'root' },
   withState(initialState),
-  withComputed(({ workOrders }) => ({
-    // Add any global computed properties here if needed
+  withComputed(({ workOrders, statusFilter }) => ({
+    filteredWorkOrders: computed(() => {
+      const filter = statusFilter();
+      const orders = workOrders();
+      if (filter === 'all') return orders;
+      return orders.filter((o) => o.data.status === filter);
+    }),
   })),
   withMethods((store) => ({
     setLoading(isLoading: boolean): void {
       patchState(store, { isLoading });
+    },
+    setStatusFilter(statusFilter: WorkOrderStatus | 'all'): void {
+      patchState(store, { statusFilter });
     },
     setDataSource(dataSource: DataSource): void {
       patchState(store, { dataSource });
