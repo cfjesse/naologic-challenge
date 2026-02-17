@@ -12,6 +12,7 @@ import {
   ChangeDetectionStrategy,
   effect,
   untracked,
+  HostListener,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -32,28 +33,25 @@ import {
 } from '../work-order-panel/work-order-panel';
 import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog';
 
-/* ── Column header model ── */
-interface ColumnHeader {
-  label: string;
-  date: Date;
-  isCurrent: boolean;
-  left: number;
-  width: number;
-}
-
-/* ── Active menu state ── */
-interface ActiveMenu {
-  orderId: string;
-  x: number;
-  y: number;
-}
-
-interface TooltipState {
-  visible: boolean;
-  text: string;
-  x: number;
-  y: number;
-}
+import {
+  ColumnHeader,
+  ActiveMenu,
+  TooltipState,
+} from './work-order-timeline.types';
+import {
+  toIso,
+  getStatusLabel,
+  getBarClass,
+  getStatusClass,
+  formatColumnLabel,
+  isDateInCurrentPeriod,
+  calculateBarLeft,
+  calculateBarWidth,
+  calculateColumns,
+  calculateFitToData,
+  calculateViewportRange,
+  calculateCursorPositionPercent
+} from './work-order-timeline.utils';
 
 @Component({
   selector: 'app-work-order-timeline',
@@ -148,15 +146,11 @@ export class WorkOrderTimelineComponent
   protected readonly cursorDate = signal<Date | null>(new Date());
   
   protected readonly cursorPositionPercent = computed(() => {
-    const curDate = this.cursorDate();
-    if (!curDate) return -10;
-
-    const start = this.viewportStart().getTime();
-    const end = this.viewportEnd().getTime();
-    const current = curDate.getTime();
-    const total = end - start;
-    if (total <= 0) return 0;
-    return ((current - start) / total) * 100;
+    return calculateCursorPositionPercent(
+      this.cursorDate(),
+      this.viewportStart(),
+      this.viewportEnd()
+    );
   });
 
   /** The calendar interval (Day, Week, or Month) containing the current cursor date */
@@ -212,10 +206,13 @@ export class WorkOrderTimelineComponent
     const curPercent = this.cursorPositionPercent();
     if (curPercent < 0 || curPercent > 100) return [];
 
+    const start = this.viewportStart().getTime();
+    const span = this.totalSpanMs();
+
     return this.workOrders()
       .filter((order: WorkOrderDocument) => {
-        const left = this.getBarLeft(order);
-        const width = this.getBarWidth(order);
+        const left = calculateBarLeft(order, start, span);
+        const width = calculateBarWidth(order, span);
         return curPercent >= left && curPercent <= (left + width);
       })
       .sort((a: WorkOrderDocument, b: WorkOrderDocument) => new Date(b.data.startDate).getTime() - new Date(a.data.startDate).getTime());
@@ -234,41 +231,12 @@ export class WorkOrderTimelineComponent
 
   /* ── Computed: column headers ── */
   protected readonly columns = computed<ColumnHeader[]>(() => {
-    const scale = this.timeScale();
-    const start = this.viewportStart();
-    const end = this.viewportEnd();
-    const totalMs = end.getTime() - start.getTime();
-    const now = new Date();
-
-    if (totalMs <= 0) return [];
-
-    let interval: d3.TimeInterval;
-    switch (scale) {
-      case 'Day': interval = d3.timeDay; break;
-      case 'Week': interval = d3.timeWeek; break;
-      case 'Month': interval = d3.timeMonth; break;
-    }
-
-    const ticks = interval.range(interval.floor(start), interval.ceil(end));
-    
-    return ticks.map((tickDate) => {
-      const colStart = tickDate.getTime();
-      const colEnd = interval.offset(tickDate, 1).getTime();
-      
-      const renderStart = Math.max(start.getTime(), colStart);
-      const renderEnd = Math.min(end.getTime(), colEnd);
-      
-      const width = ((renderEnd - renderStart) / totalMs) * 100;
-      const left = ((renderStart - start.getTime()) / totalMs) * 100;
-
-      return {
-        label: this.formatColumnLabel(tickDate, scale),
-        date: new Date(tickDate),
-        isCurrent: this.isDateInCurrentPeriod(tickDate, now, scale),
-        left,
-        width
-      };
-    }).filter(col => col.width > 0);
+    return calculateColumns(
+      this.timeScale(),
+      this.viewportStart(),
+      this.viewportEnd(),
+      new Date()
+    );
   });
 
   /**
@@ -289,67 +257,24 @@ export class WorkOrderTimelineComponent
 
   protected readonly columnMinWidth = signal(106.25);
 
-  /* ── Bound handlers to preserve 'this' ── */
-  private boundMouseMove = this.onGlobalMouseMove.bind(this);
-  private boundMouseUp = this.onGlobalMouseUp.bind(this);
-  private boundDocClick = this.onDocumentClick.bind(this);
-
   ngOnInit(): void {
-    document.addEventListener('mousemove', this.boundMouseMove);
-    document.addEventListener('mouseup', this.boundMouseUp);
-    document.addEventListener('click', this.boundDocClick, true);
-
     // Initial snapping is now handled by syncDataEffect
   }
 
   ngAfterViewInit(): void {}
 
-  ngOnDestroy(): void {
-    document.removeEventListener('mousemove', this.boundMouseMove);
-    document.removeEventListener('mouseup', this.boundMouseUp);
-    document.removeEventListener('click', this.boundDocClick, true);
-  }
+  ngOnDestroy(): void {}
 
   /**
    * Fits the viewport to cover all work orders with a starting offset.
    * Starts at minTime minus 1 unit of the current timescale.
    */
   protected fitToData(): void {
-    const currentOrders = this.workOrders();
-    if (currentOrders.length === 0) return;
+    const { start, end } = calculateFitToData(this.workOrders(), this.timeScale());
+    if (!start || !end) return;
 
-    let minTime = Infinity;
-    let maxTime = -Infinity;
-
-    for (const order of currentOrders) {
-      const startTime = new Date(order.data.startDate).getTime();
-      const endTime = new Date(order.data.endDate).getTime();
-      if (startTime < minTime) minTime = startTime;
-      if (endTime > maxTime) maxTime = endTime;
-    }
-
-    const scale = this.timeScale();
-    let start: Date;
-    
-    // Snapping logic: earliest - 1 unit
-    switch (scale) {
-      case 'Day':
-        start = d3.timeDay.offset(new Date(minTime), -1);
-        break;
-      case 'Week':
-        start = d3.timeWeek.offset(new Date(minTime), -1);
-        break;
-      case 'Month':
-        start = d3.timeMonth.offset(new Date(minTime), -1);
-        break;
-    }
-
-    // Ensure we have at least 1 month of view
-    const minDurationMs = 30 * 24 * 60 * 60 * 1000;
-    const durationMs = Math.max(maxTime - start.getTime() + (7 * 24 * 60 * 60 * 1000), minDurationMs);
-    
     this.viewportStart.set(start);
-    this.viewportEnd.set(new Date(start.getTime() + durationMs));
+    this.viewportEnd.set(end);
   }
 
   /**
@@ -400,39 +325,9 @@ export class WorkOrderTimelineComponent
    * Centers the viewport on a specific date, adjusting the range based on the current timescale.
    */
   protected centerViewportOn(date: Date): void {
-    const scale = this.timeScale();
-    let start: Date;
-    let end: Date;
-
-    switch (scale) {
-      case 'Day':
-        start = d3.timeDay.offset(date, -10);
-        end = d3.timeDay.offset(date, 10);
-        break;
-      case 'Week':
-        start = d3.timeWeek.offset(date, -5);
-        end = d3.timeWeek.offset(date, 5);
-        break;
-      case 'Month':
-        start = d3.timeMonth.offset(date, -6);
-        end = d3.timeMonth.offset(date, 6);
-        break;
-    }
-
-    switch (scale) {
-      case 'Day':
-        this.viewportStart.set(d3.timeDay.floor(start));
-        this.viewportEnd.set(d3.timeDay.ceil(end));
-        break;
-      case 'Week':
-        this.viewportStart.set(d3.timeWeek.floor(start));
-        this.viewportEnd.set(d3.timeWeek.ceil(end));
-        break;
-      case 'Month':
-        this.viewportStart.set(d3.timeMonth.floor(start));
-        this.viewportEnd.set(d3.timeMonth.ceil(end));
-        break;
-    }
+    const { start, end } = calculateViewportRange(date, this.timeScale());
+    this.viewportStart.set(start);
+    this.viewportEnd.set(end);
     
     // Maintain cursor position
     this.cursorDate.set(date);
@@ -451,19 +346,11 @@ export class WorkOrderTimelineComponent
 
   /* ── Bar positioning helpers ── */
   getBarLeft(order: WorkOrderDocument): number {
-    const start = this.viewportStart().getTime();
-    const span = this.totalSpanMs();
-    return ((new Date(order.data.startDate).getTime() - start) / span) * 100;
+    return calculateBarLeft(order, this.viewportStart().getTime(), this.totalSpanMs());
   }
 
   getBarWidth(order: WorkOrderDocument): number {
-    const span = this.totalSpanMs();
-    return (
-      ((new Date(order.data.endDate).getTime() -
-        new Date(order.data.startDate).getTime()) /
-        span) *
-      100
-    );
+    return calculateBarWidth(order, this.totalSpanMs());
   }
 
   getOrdersForWorkCenter(workCenterId: string): WorkOrderDocument[] {
@@ -476,30 +363,15 @@ export class WorkOrderTimelineComponent
 
   /* ── Status helpers ── */
   getStatusClass(status: WorkOrderStatus): string {
-    switch (status) {
-      case 'complete': return 'status-complete';
-      case 'in-progress': return 'status-in-progress';
-      case 'open': return 'status-open';
-      case 'blocked': return 'status-blocked';
-    }
+    return getStatusClass(status);
   }
 
   getBarClass(status: WorkOrderStatus): string {
-    switch (status) {
-      case 'complete': return 'bar-complete';
-      case 'in-progress': return 'bar-in-progress';
-      case 'open': return 'bar-open';
-      case 'blocked': return 'bar-blocked';
-    }
+    return getBarClass(status);
   }
 
   getStatusLabel(status: WorkOrderStatus): string {
-    switch (status) {
-      case 'open': return 'Open';
-      case 'in-progress': return 'In Progress';
-      case 'complete': return 'Complete';
-      case 'blocked': return 'Blocked';
-    }
+    return getStatusLabel(status);
   }
 
   getCurrentPeriodLabel(): string {
@@ -649,7 +521,7 @@ export class WorkOrderTimelineComponent
     const instance = offcanvasRef.componentInstance as WorkOrderPanelComponent;
     instance.mode = 'create';
     instance.workCenterId = workCenterId;
-    instance.startDate = this.toIso(startDate);
+    instance.startDate = toIso(startDate);
 
     offcanvasRef.result.then(
       (result: PanelSaveEvent) => this.handlePanelSave(result),
@@ -824,7 +696,8 @@ export class WorkOrderTimelineComponent
   }
 
   /* ── Global mouse move ── */
-  private onGlobalMouseMove(event: MouseEvent): void {
+  @HostListener('document:mousemove', ['$event'])
+  protected onGlobalMouseMove(event: MouseEvent): void {
     const area = this.timelineArea()?.nativeElement;
     if (!area) return;
 
@@ -882,21 +755,21 @@ export class WorkOrderTimelineComponent
         case 'move': {
           const duration = this.dragState!.originalEnd.getTime() - this.dragState!.originalStart.getTime();
           const newStart = d3.timeDay.round(new Date(this.dragState!.originalStart.getTime() + deltaMs));
-          newStartIso = this.toIso(newStart);
-          newEndIso = this.toIso(new Date(newStart.getTime() + duration));
+          newStartIso = toIso(newStart);
+          newEndIso = toIso(new Date(newStart.getTime() + duration));
           break;
         }
         case 'resize-start': {
           const snapped = d3.timeDay.round(new Date(this.dragState!.originalStart.getTime() + deltaMs));
           if (snapped < this.dragState!.originalEnd) {
-            newStartIso = this.toIso(snapped);
+            newStartIso = toIso(snapped);
           }
           break;
         }
         case 'resize-end': {
           const snapped = d3.timeDay.round(new Date(this.dragState!.originalEnd.getTime() + deltaMs));
           if (snapped > this.dragState!.originalStart) {
-            newEndIso = this.toIso(snapped);
+            newEndIso = toIso(snapped);
           }
           break;
         }
@@ -924,7 +797,8 @@ export class WorkOrderTimelineComponent
     this.forceHeaderRefresh(); // Added for alignment
   }
 
-  private onGlobalMouseUp(): void {
+  @HostListener('document:mouseup')
+  protected onGlobalMouseUp(): void {
     if (this.dragState || this.cursorDragging || this.isPanning) {
       this.dragState = null;
       this.cursorDragging = false;
@@ -934,42 +808,12 @@ export class WorkOrderTimelineComponent
     }
   }
 
-  private onDocumentClick(event: MouseEvent): void {
+  @HostListener('document:click', ['$event'])
+  protected onDocumentClick(event: MouseEvent): void {
     const target = event.target as HTMLElement;
     if (!target.closest('.bar-ellipsis') && !target.closest('.ellipsis-dropdown')) {
       this.activeMenu.set(null);
     }
   }
 
-  /* ── Format helpers ── */
-  protected formatColumnLabel(date: Date, scale: TimeScale): string {
-    switch (scale) {
-      case 'Day': return d3.timeFormat('%b %d')(date);
-      case 'Week': {
-        const endOfWeek = d3.timeDay.offset(date, 6);
-        return `${d3.timeFormat('%b %d')(date)} – ${d3.timeFormat('%b %d')(endOfWeek)}`;
-      }
-      case 'Month': return d3.timeFormat('%b %Y')(date);
-    }
-  }
-
-  protected isDateInCurrentPeriod(colDate: Date, now: Date, scale: TimeScale): boolean {
-    switch (scale) {
-      case 'Day': return d3.timeDay.floor(colDate).getTime() === d3.timeDay.floor(now).getTime();
-      case 'Week': {
-        const weekStart = d3.timeWeek.floor(now);
-        const weekEnd = d3.timeWeek.offset(weekStart, 1);
-        return colDate >= weekStart && colDate < weekEnd;
-      }
-      case 'Month': return d3.timeMonth.floor(colDate).getTime() === d3.timeMonth.floor(now).getTime();
-    }
-  }
-
-  /* ── Date Utils ── */
-  protected toIso(d: Date): string {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  }
 }
