@@ -5,7 +5,7 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #ffffff;
+  background: var(--color-bg-main);
 }
 
 /* ── Header ── */
@@ -14,7 +14,7 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   justify-content: space-between;
   align-items: flex-start;
   padding: 28px 28px 20px;
-  border-bottom: 1px solid #ededf5;
+  border-bottom: 1px solid var(--color-border-medium);
   flex-shrink: 0;
 }
 
@@ -26,7 +26,7 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   font-family: $font-family;
   font-size: 18px;
   font-weight: 700;
-  color: #1b1f3b;
+  color: var(--color-text-main);
   margin: 0 0 4px;
 }
 
@@ -34,7 +34,7 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   font-family: $font-family;
   font-size: 13px;
   font-weight: 400;
-  color: #8b8fa3;
+  color: var(--color-text-secondary);
   margin: 0;
 }
 
@@ -49,14 +49,14 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   font-family: $font-family;
   font-size: 13px;
   font-weight: 500;
-  color: #1b1f3b;
+  color: var(--color-text-main);
   background: transparent;
   border: none;
   cursor: pointer;
   padding: 8px 16px;
 
   &:hover {
-    color: #5046e5;
+    color: var(--color-brand-primary);
   }
 }
 
@@ -65,7 +65,7 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   font-size: 13px;
   font-weight: 600;
   color: #ffffff;
-  background: #5046e5;
+  background: var(--color-brand-primary);
   border: none;
   border-radius: 6px;
   padding: 8px 20px;
@@ -109,9 +109,9 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   font-family: $font-family;
   font-size: 14px;
   font-weight: 400;
-  color: #1b1f3b;
-  background: #ffffff;
-  border: 1px solid #e8e8f0;
+  color: var(--color-text-main);
+  background: var(--color-bg-main);
+  border: 1px solid var(--color-border-strong);
   border-radius: 6px;
   outline: none;
   box-sizing: border-box;
@@ -175,9 +175,9 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
 }
 
 .status-blocked {
-  color: #f57f17;
-  background-color: rgba(245, 127, 23, 0.12);
-  border: 1px solid rgba(245, 127, 23, 0.2);
+  color: var(--status-blocked-text);
+  background-color: var(--status-blocked-bg);
+  border: 1px solid var(--status-blocked-border);
 }
 
 /* ── Overlap Error ── */

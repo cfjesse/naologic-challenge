@@ -26,9 +26,52 @@
     </div>
 
     <div class="header-content-right">
+      <button class="btn-refresh me-2" (click)="fitToData()" title="Fit viewport to show all work orders">
+        <i class="bi bi-arrows-fullscreen"></i> Fit to Data
+      </button>
       <button class="btn-today" (click)="centerViewportOnToday()">Today</button>
     </div>
   </header>
+
+  <!-- Range Dashboard Card -->
+  @if (cursorDate()) {
+  <div class="cursor-dashboard animate-fade-in shadow-sm">
+    <div class="dashboard-header">
+      <div class="date-info">
+        <span class="date-label">Selection at</span>
+        <h2 class="date-value">{{ cursorDate() | date:'EEEE, MMM d, y, HH:mm' }}</h2>
+        <span class="range-context">Range: {{ selectedIntervalLabel() }}</span>
+      </div>
+      <div class="active-count">
+        <span class="count-number">{{ activeOrdersAtCursor().length }}</span>
+        <span class="count-label">ORDERS TOUCHED</span>
+      </div>
+    </div>
+
+    <div class="dashboard-body">
+      @if (activeOrdersAtCursor().length > 0) {
+      <div class="active-orders-list">
+        @for (order of activeOrdersAtCursor(); track order.docId) {
+        <div class="dashboard-order-item">
+          <div class="order-color-pill" [class]="'status-' + order.data.status"></div>
+          <div class="order-details">
+            <span class="order-name">{{ order.data.name }}</span>
+            <span class="order-wc">{{ getWorkCenterName(order.data.workCenterId) }}</span>
+          </div>
+          <span class="ng-status-badge status-{{order.data.status}}">
+            {{ getStatusLabel(order.data.status) }}
+          </span>
+        </div>
+        }
+      </div>
+      } @else {
+      <div class="dashboard-empty-state">
+        <p>Slider is not touching any work orders at this time.</p>
+      </div>
+      }
+    </div>
+  </div>
+  }
 
   <!-- Gantt Grid -->
   <div class="gantt-wrapper" #ganttWrapper (scroll)="onGanttScroll($event)">
@@ -48,11 +91,9 @@
       <div class="column-headers"
         [style.grid-template-columns]="'repeat(' + columns().length + ', minmax(' + columnMinWidth() + 'px, 1fr))'">
         @for (col of columns(); track col.date) {
-        <div class="col-header" [class.current-period]="col.isCurrentPeriod">
+        <div class="col-header" [class.current-period]="col.isCurrentPeriod" (click)="onHeaderClick($event, col.date)"
+          style="cursor: pointer;" title="Click to move cursor">
           <span class="col-label">{{ col.label }}</span>
-          @if (col.isCurrentPeriod) {
-          <span class="current-pill">{{ getCurrentPeriodLabel() }}</span>
-          }
         </div>
         }
       </div>
@@ -70,14 +111,14 @@
 
         <!-- Work order bars -->
         @for (order of getOrdersForWorkCenter(wc.docId); track order.docId) {
-        <div class="bar {{ getBarClass(order.data.status) }}" [style.left.%]="getBarLeft(order)"
+        <div class="bar bar-{{order.data.status}}" [style.left.%]="getBarLeft(order)"
           [style.width.%]="getBarWidth(order)" (mousedown)="onBarMouseDown($event, order)"
           [title]="order.data.name + ' (' + order.data.startDate + ' – ' + order.data.endDate + ')'">
           <!-- Left resize handle -->
           <div class="resize-handle resize-handle-left" (mousedown)="onResizeMouseDown($event, order, 'start')"></div>
 
           <span class="bar-title">{{ order.data.name }}</span>
-          <span class="bar-status {{ getStatusClass(order.data.status) }}">
+          <span class="bar-status status-{{order.data.status}}">
             {{ getStatusLabel(order.data.status) }}
           </span>
 

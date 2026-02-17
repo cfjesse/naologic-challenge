@@ -9,6 +9,9 @@ import {
   AfterViewInit,
   ChangeDetectorRef,
   inject,
+  ChangeDetectionStrategy,
+  effect,
+  untracked,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -22,7 +25,7 @@ import {
   WorkOrderStatus,
   TimeScale,
 } from '../../models/work-order.model';
-import { WorkOrderService } from '../../services/work-order.service';
+import { WorkOrderStore } from '../../store/work-order.store';
 import {
   WorkOrderPanelComponent,
   PanelSaveEvent,
@@ -55,17 +58,36 @@ interface ActiveMenu {
   ],
   templateUrl: './work-order-timeline.html',
   styleUrl: './work-order-timeline.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WorkOrderTimelineComponent
   implements OnInit, OnDestroy, AfterViewInit
 {
   private readonly cdr = inject(ChangeDetectorRef);
-  private readonly workOrderService = inject(WorkOrderService);
+  protected readonly store = inject(WorkOrderStore);
   private readonly offcanvasService = inject(NgbOffcanvas);
+
+  /** 
+   * Synchronization Effect
+   * Ensures the cursor and viewport snap to data once it's loaded.
+   */
+  private readonly syncDataEffect = effect(() => {
+    const orders = this.workOrders();
+    if (orders.length > 0) {
+      untracked(() => {
+        this.fitToData();
+        // Initial snap: put cursor exactly at the viewport start (earliest - 1 unit)
+        this.cursorDate.set(this.viewportStart());
+      });
+    }
+  });
 
   /* ── Refs ── */
   private readonly timelineArea = viewChild<ElementRef<HTMLDivElement>>(
     'timelineArea'
+  );
+  private readonly ganttWrapper = viewChild<ElementRef<HTMLDivElement>>(
+    'ganttWrapper'
   );
 
   /* ── Timescale ── */
@@ -77,12 +99,11 @@ export class WorkOrderTimelineComponent
   protected readonly viewportStart = signal(new Date());
   protected readonly viewportEnd = signal(new Date());
 
-  /* ── Data from Service ── */
-  protected readonly workCenters = this.workOrderService.workCenters;
-  protected readonly workOrders = this.workOrderService.workOrders;
+  /* ── Data from Store ── */
+  protected readonly workCenters = this.store.workCenters;
+  protected readonly workOrders = this.store.workOrders;
 
   /* ── Cursor / slider ── */
-  protected readonly cursorDate = signal(new Date());
   private cursorDragging = false;
 
   /* ── Drag state (for bars) ── */
@@ -115,6 +136,84 @@ export class WorkOrderTimelineComponent
     y: number;
   }>({ visible: false, text: '', x: 0, y: 0 });
   
+  /* ── Cursor State ── */
+  /** Current date position of the cursor (null if not set/visible) */
+  protected readonly cursorDate = signal<Date | null>(new Date());
+  
+  protected readonly cursorPositionPercent = computed(() => {
+    const curDate = this.cursorDate();
+    if (!curDate) return -10;
+
+    const start = this.viewportStart().getTime();
+    const end = this.viewportEnd().getTime();
+    const current = curDate.getTime();
+    const total = end - start;
+    if (total <= 0) return 0;
+    return ((current - start) / total) * 100;
+  });
+
+  /** The calendar interval (Day, Week, or Month) containing the current cursor date */
+  protected readonly selectedInterval = computed(() => {
+    const date = this.cursorDate();
+    if (!date) return null;
+    const scale = this.timeScale();
+
+    let start: Date;
+    let end: Date;
+
+    switch (scale) {
+      case 'Day':
+        start = d3.timeDay.floor(date);
+        end = d3.timeDay.offset(start, 1);
+        break;
+      case 'Week':
+        start = d3.timeWeek.floor(date);
+        end = d3.timeWeek.offset(start, 1);
+        break;
+      case 'Month':
+        start = d3.timeMonth.floor(date);
+        end = d3.timeMonth.offset(start, 1);
+        break;
+    }
+
+    return { start, end };
+  });
+
+  /** Label for the currently selected interval range */
+  protected readonly selectedIntervalLabel = computed(() => {
+    const interval = this.selectedInterval();
+    if (!interval) return '';
+    const scale = this.timeScale();
+
+    const formatDay = d3.timeFormat('%B %d, %Y');
+    const formatMonth = d3.timeFormat('%B %Y');
+    const formatWeek = (d: Date) => {
+      const sunday = d3.timeWeek.floor(d);
+      const saturday = d3.timeDay.offset(sunday, 6);
+      return `${d3.timeFormat('%b %d')(sunday)} - ${d3.timeFormat('%b %d, %Y')(saturday)}`;
+    };
+
+    switch (scale) {
+      case 'Day': return formatDay(interval.start);
+      case 'Week': return `Week of ${formatWeek(interval.start)}`;
+      case 'Month': return formatMonth(interval.start);
+    }
+  });
+
+  /** Work orders that are physically intersected by the slider's current position */
+  protected readonly activeOrdersAtCursor = computed(() => {
+    const curPercent = this.cursorPositionPercent();
+    if (curPercent < 0 || curPercent > 100) return [];
+
+    return this.workOrders()
+      .filter(order => {
+        const left = this.getBarLeft(order);
+        const width = this.getBarWidth(order);
+        return curPercent >= left && curPercent <= (left + width);
+      })
+      .sort((a, b) => new Date(b.data.startDate).getTime() - new Date(a.data.startDate).getTime());
+  });
+
   /* ── Panning state ── */
   private isPanning = false;
   private panStartX = 0;
@@ -142,19 +241,23 @@ export class WorkOrderTimelineComponent
     }
 
     const ticks = interval.range(start, end);
-    return ticks.map((date) => ({
-      label: this.formatColumnLabel(date, scale),
-      date: new Date(date),
-      isCurrentPeriod: this.isDateInCurrentPeriod(date, now, scale),
+    return ticks.map((tickDate) => ({
+      label: this.formatColumnLabel(tickDate, scale),
+      date: new Date(tickDate),
+      isCurrentPeriod: this.isDateInCurrentPeriod(tickDate, now, scale),
     }));
   });
 
+  /**
+   * Computed earliest start date from all loaded work orders.
+   * Used for bounding the scroll-back logic.
+   */
   private readonly minDataDate = computed(() => {
     const orders = this.workOrders();
     if (orders.length === 0) return new Date();
     // Return earliest start date
-    const min = Math.min(...orders.map(o => new Date(o.data.startDate).getTime()));
-    return new Date(min);
+    const minTimestamp = Math.min(...orders.map(order => new Date(order.data.startDate).getTime()));
+    return new Date(minTimestamp);
   });
 
   protected readonly totalSpanMs = computed(
@@ -172,13 +275,6 @@ export class WorkOrderTimelineComponent
     }
   });
 
-  protected readonly cursorPositionPercent = computed(() => {
-    const start = this.viewportStart().getTime();
-    const span = this.totalSpanMs();
-    const cur = this.cursorDate().getTime();
-    return Math.max(0, Math.min(100, ((cur - start) / span) * 100));
-  });
-
   /* ── Bound handlers to preserve 'this' ── */
   private boundMouseMove = this.onGlobalMouseMove.bind(this);
   private boundMouseUp = this.onGlobalMouseUp.bind(this);
@@ -189,12 +285,7 @@ export class WorkOrderTimelineComponent
     document.addEventListener('mouseup', this.boundMouseUp);
     document.addEventListener('click', this.boundDocClick, true);
 
-    // Fit to data initially, or center on today if no data
-    if (this.workOrders().length > 0) {
-      this.fitToData();
-    } else {
-      this.centerViewportOnToday();
-    }
+    // Initial snapping is now handled by syncDataEffect
   }
 
   ngAfterViewInit(): void {}
@@ -206,64 +297,125 @@ export class WorkOrderTimelineComponent
   }
 
   /**
-   * Fit viewport to cover all work orders with padding.
+   * Fits the viewport to cover all work orders with a starting offset.
+   * Starts at minTime minus 1 unit of the current timescale.
    */
-  private fitToData(): void {
-    const orders = this.workOrders();
-    if (orders.length === 0) return;
+  protected fitToData(): void {
+    const currentOrders = this.workOrders();
+    if (currentOrders.length === 0) return;
 
     let minTime = Infinity;
     let maxTime = -Infinity;
 
-    for (const o of orders) {
-      const start = new Date(o.data.startDate).getTime();
-      const end = new Date(o.data.endDate).getTime();
-      if (start < minTime) minTime = start;
-      if (end > maxTime) maxTime = end;
+    for (const order of currentOrders) {
+      const startTime = new Date(order.data.startDate).getTime();
+      const endTime = new Date(order.data.endDate).getTime();
+      if (startTime < minTime) minTime = startTime;
+      if (endTime > maxTime) maxTime = endTime;
     }
 
-    // Add padding (e.g. 1 week start, 1 week end)
-    const padding = 7 * 24 * 60 * 60 * 1000;
-    const duration = maxTime - minTime + 2 * padding;
+    const scale = this.timeScale();
+    let start: Date;
     
-    // Ensure minimum duration based on zoom (approx 30 days)
-    const minDuration = 30 * 24 * 60 * 60 * 1000;
+    // Snapping logic: earliest - 1 unit
+    switch (scale) {
+      case 'Day':
+        start = d3.timeDay.offset(new Date(minTime), -1);
+        break;
+      case 'Week':
+        start = d3.timeWeek.offset(new Date(minTime), -1);
+        break;
+      case 'Month':
+        start = d3.timeMonth.offset(new Date(minTime), -1);
+        break;
+    }
+
+    // Ensure we have at least 1 month of view
+    const minDurationMs = 30 * 24 * 60 * 60 * 1000;
+    const durationMs = Math.max(maxTime - start.getTime() + (7 * 24 * 60 * 60 * 1000), minDurationMs);
     
-    // Set viewport
-    this.viewportStart.set(new Date(minTime - padding));
-    this.viewportEnd.set(new Date(Math.max(minTime - padding + duration, minTime - padding + minDuration)));
+    this.viewportStart.set(start);
+    this.viewportEnd.set(new Date(start.getTime() + durationMs));
   }
 
-  /* ── Viewport logic ── */
-  protected centerViewportOnToday(): void {
-    const now = new Date();
+  /**
+   * Smoothly scrolls the gantt area to center on a specific date.
+   * Useful for "Today" jump or manual selections.
+   */
+  private scrollToDate(date: Date): void {
+    const wrapper = this.ganttWrapper()?.nativeElement;
+    if (!wrapper) return;
+
+    const start = this.viewportStart().getTime();
+    const span = this.totalSpanMs();
+    const targetMs = date.getTime();
+
+    // Calculate percentage position of the date within the timeline
+    const percent = (targetMs - start) / span;
+    
+    // Calculate scrollLeft to center the date in the viewport
+    const scrollTarget = percent * wrapper.scrollWidth - wrapper.clientWidth / 2;
+    
+    wrapper.scrollTo({
+      left: Math.max(0, scrollTarget),
+      behavior: 'smooth'
+    });
+  }
+
+  /* ── Timescale change ── */
+  onTimeScaleChange(scale: TimeScale): void {
+    const anchor = this.cursorDate() || new Date();
+    this.timeScale.set(scale);
+    this.centerViewportOn(anchor);
+  }
+
+  /**
+   * Centers the viewport on a specific date, adjusting the range based on the current timescale.
+   */
+  protected centerViewportOn(date: Date): void {
     const scale = this.timeScale();
     let start: Date;
     let end: Date;
 
     switch (scale) {
       case 'Day':
-        const dayStart = d3.timeDay.offset(now, -10);
-        const dayEnd = d3.timeDay.offset(now, 10);
-        start = d3.timeDay.floor(dayStart);
-        end = d3.timeDay.ceil(dayEnd);
+        start = d3.timeDay.offset(date, -10);
+        end = d3.timeDay.offset(date, 10);
         break;
       case 'Week':
-        const weekStart = d3.timeWeek.offset(now, -5);
-        const weekEnd = d3.timeWeek.offset(now, 5);
-        start = d3.timeWeek.floor(weekStart);
-        end = d3.timeWeek.ceil(weekEnd);
+        start = d3.timeWeek.offset(date, -5);
+        end = d3.timeWeek.offset(date, 5);
         break;
       case 'Month':
-        const monthStart = d3.timeMonth.offset(now, -6);
-        const monthEnd = d3.timeMonth.offset(now, 6);
-        start = d3.timeMonth.floor(monthStart);
-        end = d3.timeMonth.ceil(monthEnd);
+        start = d3.timeMonth.offset(date, -6);
+        end = d3.timeMonth.offset(date, 6);
         break;
     }
 
-    this.viewportStart.set(start);
-    this.viewportEnd.set(end);
+    switch (scale) {
+      case 'Day':
+        this.viewportStart.set(d3.timeDay.floor(start));
+        this.viewportEnd.set(d3.timeDay.ceil(end));
+        break;
+      case 'Week':
+        this.viewportStart.set(d3.timeWeek.floor(start));
+        this.viewportEnd.set(d3.timeWeek.ceil(end));
+        break;
+      case 'Month':
+        this.viewportStart.set(d3.timeMonth.floor(start));
+        this.viewportEnd.set(d3.timeMonth.ceil(end));
+        break;
+    }
+    
+    // Maintain cursor position
+    this.cursorDate.set(date);
+
+    // Re-scroll to ensure centering
+    setTimeout(() => this.scrollToDate(date), 0);
+  }
+
+  protected centerViewportOnToday(): void {
+    this.centerViewportOn(new Date());
   }
 
   /* ── Bar positioning helpers ── */
@@ -284,11 +436,11 @@ export class WorkOrderTimelineComponent
   }
 
   getOrdersForWorkCenter(workCenterId: string): WorkOrderDocument[] {
-    return this.workOrderService.getOrdersForWorkCenter(workCenterId);
+    return this.store.getOrdersForWorkCenter(workCenterId);
   }
 
   getWorkCenterName(workCenterId: string): string {
-    return this.workOrderService.getWorkCenterName(workCenterId);
+    return this.store.getWorkCenterName(workCenterId);
   }
 
   /* ── Status helpers ── */
@@ -317,12 +469,6 @@ export class WorkOrderTimelineComponent
       case 'complete': return 'Complete';
       case 'blocked': return 'Blocked';
     }
-  }
-
-  /* ── Timescale change ── */
-  onTimeScaleChange(scale: TimeScale): void {
-    this.timeScale.set(scale);
-    this.centerViewportOnToday();
   }
 
   getCurrentPeriodLabel(): string {
@@ -449,7 +595,7 @@ export class WorkOrderTimelineComponent
   /* ── Confirm Delete ── */
   onConfirmDelete(): void {
     if (this.confirmOrderToDelete) {
-      this.workOrderService.deleteWorkOrder(this.confirmOrderToDelete.docId);
+      this.store.deleteWorkOrder(this.confirmOrderToDelete.docId);
       this.confirmOrderToDelete = null;
     }
     this.confirmVisible.set(false);
@@ -499,9 +645,9 @@ export class WorkOrderTimelineComponent
 
   private handlePanelSave(event: PanelSaveEvent): void {
     if (event.mode === 'create') {
-      this.workOrderService.addWorkOrder(event.data);
+      this.store.addWorkOrder(event.data);
     } else if (event.mode === 'edit' && event.docId) {
-      this.workOrderService.updateWorkOrder(event.docId, event.data);
+      this.store.updateWorkOrder(event.docId, event.data);
     }
   }
 
@@ -551,11 +697,93 @@ export class WorkOrderTimelineComponent
     this.tooltip.update((t) => ({ ...t, visible: false }));
   }
 
+  protected onHeaderClick(event: MouseEvent, date: Date): void {
+      this.cursorDate.set(date);
+      this.scrollToDate(date);
+  }
+
+  /* ── Infinite Scroll Logic ── */
+  /**
+   * Refreshes the scroll and infinite expansion logic.
+   * Can be called manually or via scroll event.
+   */
+  protected checkInfiniteScroll(): void {
+    if (this.isLoadingMore) return;
+    const wrapper = this.ganttWrapper()?.nativeElement;
+    if (!wrapper) return;
+
+    const { scrollLeft, scrollWidth, clientWidth } = wrapper;
+    const buffer = 200;
+
+    // Extend Right
+    if (scrollLeft + clientWidth >= scrollWidth - buffer) {
+      this.isLoadingMore = true;
+      const currentEnd = this.viewportEnd();
+      const addedTimeMs = this.totalSpanMs() * 0.2;
+      this.viewportEnd.set(new Date(currentEnd.getTime() + addedTimeMs));
+      this.cdr.detectChanges();
+      setTimeout(() => this.isLoadingMore = false, 50);
+    }
+    // Extend Left (Bounded)
+    else if (scrollLeft <= buffer) {
+      const currentStart = this.viewportStart();
+      const minDate = this.minDataDate();
+      const limitTime = minDate.getTime() - (7 * 24 * 60 * 60 * 1000);
+      
+      if (currentStart.getTime() > limitTime + 1000) {
+         this.isLoadingMore = true;
+         const addedTimeMs = this.totalSpanMs() * 0.2;
+         let newStartTime = Math.max(limitTime, currentStart.getTime() - addedTimeMs);
+         
+         const oldScrollWidth = wrapper.scrollWidth;
+         const oldScrollLeft = wrapper.scrollLeft;
+
+         this.viewportStart.set(new Date(newStartTime));
+         this.cdr.detectChanges();
+
+         const widthDiff = wrapper.scrollWidth - oldScrollWidth;
+         if (widthDiff > 0) {
+            wrapper.scrollLeft = oldScrollLeft + widthDiff;
+         }
+         setTimeout(() => this.isLoadingMore = false, 50);
+      }
+    }
+  }
+
+  onGanttScroll(event: Event): void {
+    this.checkInfiniteScroll();
+  }
+
+  /**
+   * Auto-scrolls the wrapper if the mouse is near the edges during a drag.
+   */
+  private handleDragAutoScroll(clientX: number): void {
+    const wrapper = this.ganttWrapper()?.nativeElement;
+    if (!wrapper) return;
+
+    const rect = wrapper.getBoundingClientRect();
+    const edgeSize = 100;
+    const scrollSpeed = 15;
+
+    if (clientX >= rect.right - edgeSize) {
+      wrapper.scrollLeft += scrollSpeed;
+      this.checkInfiniteScroll();
+    } else if (clientX <= rect.left + edgeSize) {
+      wrapper.scrollLeft -= scrollSpeed;
+      this.checkInfiniteScroll();
+    }
+  }
+
   /* ── Global mouse move ── */
   private onGlobalMouseMove(event: MouseEvent): void {
     const area = this.timelineArea()?.nativeElement;
     if (!area) return;
     const rect = area.getBoundingClientRect();
+
+    // Interaction Refresh: Auto-scroll if dragging near edges
+    if (this.cursorDragging || this.dragState) {
+        this.handleDragAutoScroll(event.clientX);
+    }
 
     if (this.cursorDragging) {
       const xPercent = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
@@ -567,12 +795,7 @@ export class WorkOrderTimelineComponent
 
     if (this.isPanning) {
         const dx = event.clientX - this.panStartX;
-        // Panning math: moving mouse right (positive dx) means we want to see what is on the LEFT.
-        // So viewport start shifts LEFT (decrease).
-        
         const totalMs = this.totalSpanMs();
-         // If width is 1000px and totalMs is 1000ms. 1px = 1ms.
-         // dx = 10px. we move 10ms.
         const msPerPx = totalMs / rect.width;
         const deltaMs = dx * msPerPx;
         
@@ -582,16 +805,19 @@ export class WorkOrderTimelineComponent
         this.viewportStart.set(new Date(newStart));
         this.viewportEnd.set(new Date(newEnd));
         this.cdr.detectChanges();
+        
+        // Panning is an interaction: check infinite scroll
+        this.checkInfiniteScroll();
         return;
     }
 
     if (!this.dragState) return;
+
     const dx = event.clientX - this.dragState.startMouseX;
     const pxToMs = this.totalSpanMs() / rect.width;
     const deltaMs = dx * pxToMs;
 
-    const currentOrders = this.workOrders();
-    const targetOrder = currentOrders.find(o => o.docId === this.dragState!.orderId);
+    const targetOrder = this.workOrders().find(o => o.docId === this.dragState!.orderId);
 
     if (targetOrder) {
       let newStartIso = targetOrder.data.startDate;
@@ -622,25 +848,24 @@ export class WorkOrderTimelineComponent
       }
 
       // Check for overlap before updating
-      const overlap = this.workOrderService.checkOverlap(
+      const overlap = this.store.checkOverlap(
         targetOrder.data.workCenterId,
         newStartIso,
         newEndIso,
         targetOrder.docId
       );
 
-      if (overlap) {
-        // Enforce no overlap: simply do not update
-        // The bar will appear "stuck" at the last valid position until mouse moves back to valid range
-        return;
-      }
+      if (overlap) return;
 
-      this.workOrderService.updateWorkOrder(targetOrder.docId, {
+      this.store.updateWorkOrder(targetOrder.docId, {
         ...targetOrder.data,
         startDate: newStartIso,
         endDate: newEndIso,
       });
     }
+
+    // Proactive Interaction Refresh: Check for infinite scroll expansion on every move
+    this.checkInfiniteScroll();
   }
 
   private onGlobalMouseUp(): void {
@@ -660,13 +885,6 @@ export class WorkOrderTimelineComponent
   }
 
   /* ── Format helpers ── */
-  private toIso(d: Date): string {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  }
-
   private formatColumnLabel(date: Date, scale: TimeScale): string {
     switch (scale) {
       case 'Day': return d3.timeFormat('%b %d')(date);
@@ -689,69 +907,12 @@ export class WorkOrderTimelineComponent
       case 'Month': return d3.timeMonth.floor(colDate).getTime() === d3.timeMonth.floor(now).getTime();
     }
   }
-  /* ── Infinite Scroll ── */
-  onGanttScroll(event: Event): void {
-    if (this.isLoadingMore) return;
 
-    const target = event.target as HTMLElement;
-    const { scrollLeft, scrollWidth, clientWidth } = target;
-    const buffer = 200; // pixels to trigger load
-
-    // Extend Right
-    if (scrollLeft + clientWidth >= scrollWidth - buffer) {
-      this.isLoadingMore = true;
-      const currentEnd = this.viewportEnd();
-      const span = this.totalSpanMs();
-      const newEnd = new Date(currentEnd.getTime() + (span * 0.2));
-      this.viewportEnd.set(newEnd);
-      // Debounce
-      setTimeout(() => { this.isLoadingMore = false; }, 50);
-    } 
-    
-    // Extend Left (Bounded)
-    else if (scrollLeft <= buffer) {
-      const currentStart = this.viewportStart();
-      const minDate = this.minDataDate();
-      // Padding of 1 week (matching fitToData)
-      const padding = 7 * 24 * 60 * 60 * 1000;
-      const limitTime = minDate.getTime() - padding;
-      
-      // If we can still scroll back
-      // Note: currentStart might be slightly larger than limitTime due to floating point or drag
-      // We allow scrolling back if current > limit
-      if (currentStart.getTime() > limitTime + 1000) { // +1s tolerance
-         this.isLoadingMore = true;
-         
-         const span = this.totalSpanMs();
-         const addedTime = span * 0.2;
-         let newStartTime = currentStart.getTime() - addedTime;
-         
-         // Clamp to limit
-         if (newStartTime < limitTime) {
-             newStartTime = limitTime;
-         }
-         
-         // Perform extension
-         const newStart = new Date(newStartTime);
-         const oldScrollWidth = scrollWidth;
-         const oldScrollLeft = scrollLeft;
-
-         this.viewportStart.set(newStart);
-         this.cdr.detectChanges();
-
-         const newScrollWidth = target.scrollWidth;
-         const widthDiff = newScrollWidth - oldScrollWidth;
-
-         if (widthDiff > 0) {
-            target.scrollLeft = oldScrollLeft + widthDiff;
-         }
-         
-         setTimeout(() => { this.isLoadingMore = false; }, 50);
-      }
-    }
-
-
-    
-    // Left scroll extension disabled per user request
+  /* ── Date Utils ── */
+  private toIso(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 }

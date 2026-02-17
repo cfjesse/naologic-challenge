@@ -44,6 +44,57 @@
   src: url("https://naologic-com-assets.naologic.com/fonts/circular-std/circular-std-black.woff2") format('woff2');
 }
 
+/* ─── CSS Variables ─── */
+:root {
+  /* Brand */
+  --color-brand-primary: #5046e5;
+  --color-brand-accent: #1b1f3b; /* Also main text */
+
+  /* Text */
+  --color-text-main: #1b1f3b;
+  --color-text-secondary: #8b8fa3;
+  --color-text-danger: #e53935;
+
+  /* Backgrounds */
+  --color-bg-main: #ffffff;
+  --color-bg-secondary: #f7f7fb; /* Headers */
+  --color-bg-hover: #f3f3fa;
+  --color-bg-row-even: #fafafd;
+
+  /* Borders */
+  --color-border-light: #f0f0f6;   /* Rows */
+  --color-border-medium: #ededf5;  /* Headers vertical */
+  --color-border-strong: #e8e8f0;  /* Key borders */
+
+  /* Status: Open */
+  --status-open-text: #5046e5;
+  --status-open-bg: rgba(80, 70, 229, 0.12);
+  --status-open-border: rgba(80, 70, 229, 0.2);
+
+  /* Status: In Progress */
+  --status-progress-text: #7b61ff;
+  --status-progress-bg: rgba(123, 97, 255, 0.12);
+  --status-progress-border: rgba(123, 97, 255, 0.2);
+
+  /* Status: Complete */
+  --status-complete-text: #2e7d32;
+  --status-complete-bg: rgba(46, 125, 50, 0.12);
+  --status-complete-border: rgba(46, 125, 50, 0.2);
+
+  /* Status: Blocked */
+  --status-blocked-text: #f57f17;
+  --status-blocked-bg: rgba(245, 127, 23, 0.12);
+  --status-blocked-border: rgba(245, 127, 23, 0.2);
+
+  /* Current Period Highlight */
+  --current-highlight-bg: #fff8e1;
+  --current-highlight-text: #e6a817;
+
+  /* Dimensions */
+  --header-height: 36px;
+  --row-height: 56px;
+}
+
 /* ─── Custom Naologic Theme ─── */
 html,
 body {

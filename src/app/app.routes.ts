@@ -8,4 +8,11 @@ export const routes: Routes = [
         (m) => m.WorkOrderTimelineComponent
       ),
   },
+  {
+    path: 'data-source',
+    loadComponent: () =>
+      import('./components/data-source-selector/data-source-selector').then(
+        (m) => m.DataSourceSelectorComponent
+      ),
+  },
 ];

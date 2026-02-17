@@ -21,7 +21,7 @@ import {
   WorkOrderStatus,
   WorkCenterDocument,
 } from '../../models/work-order.model';
-import { WorkOrderService } from '../../services/work-order.service';
+import { WorkOrderStore } from '../../store/work-order.store';
 
 /* ── Exported event interfaces ── */
 export interface PanelSaveEvent {
@@ -50,7 +50,7 @@ export interface PanelSaveEvent {
 export class WorkOrderPanelComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   readonly activeOffcanvas = inject(NgbActiveOffcanvas);
-  private readonly workOrderService = inject(WorkOrderService);
+  private readonly store = inject(WorkOrderStore);
 
   @Input() mode: 'create' | 'edit' = 'create';
   @Input() workOrder: WorkOrderDocument | null = null;
@@ -153,7 +153,7 @@ export class WorkOrderPanelComponent implements OnInit {
 
     // Check overlap
     this.overlapError = '';
-    const overlap = this.workOrderService.checkOverlap(
+    const overlap = this.store.checkOverlap(
       wcId,
       startIso,
       endIso,
