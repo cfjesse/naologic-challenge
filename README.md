@@ -12,7 +12,6 @@ An interactive timeline component for visualizing and managing work orders acros
   - **Update**: Edit details via the 3-dot menu or resize/move bars directly.
   - **Delete**: Remove orders via the 3-dot menu (with confirmation dialog).
 - **Validation**: Prevents work order overlaps on the same work center.
-- **Data Persistence**: Saves changes to `localStorage` (bonus feature).
 - **Responsive**: Adapts to screen size, optimized for desktop.
 
 ## Setup
@@ -24,22 +23,22 @@ An interactive timeline component for visualizing and managing work orders acros
 
 2. **Run dev server**:
    ```bash
-   ng serve
+   npm start
    ```
    Navigate to `http://localhost:4200`.
 
 ## Architecture & Approach
 
 ### Component Structure
-- `WorkOrderTimelineComponent`: The main orchestrator. Handles D3 timescale logic, viewport calculations, and drag-and-drop events.
-- `WorkOrderPanelComponent`: A slide-out panel for Create/Edit forms, powered by **NgbOffcanvas**. Uses **Reactive Forms** for validation (e.g., end date > start date).
-- `WorkOrderService`: A centralized signal-based store for data management and business logic (like overlap detection).
+- `WorkOrderTimelineComponent`: The main orchestrator. Handles D3 SVG rendering, timescale logic, viewport calculations, and drag-and-drop events.
+- `WorkOrderPanelComponent`: A slide-out panel for Create/Edit forms, powered by **NgbOffcanvas**. Uses **Reactive Forms** for validation.
+- `WorkOrderService` (Store): A centralized signal-based store for data management and business logic (overlap detection).
 
 ### Key Decisions
-- **Signals**: Used extensively for state management to ensure fine-grained reactivity and OnPush performance.
-- **D3.js**: Chosen for robust time scale calculations (`d3.timeDay`, `d3.timeWeek`, etc.) rather than writing custom date math.
-- **View Encapsulation**: Kept `Emulated` but used specific `::ng-deep` overrides for third-party libraries (`ng-select`) to match the Naologic design system.
-- **UUIDs**: All data uses UUIDs for `docId` to ensure uniqueness, with a fallback generator if `crypto.randomUUID` is unavailable.
+- **Signals**: Used for state management to ensure fine-grained reactivity.
+- **D3.js**: Chosen for robust SVG rendering, time scale calculations, and drag behaviors.
+- **View Encapsulation**: Set to `None` to allow component styles to apply to D3-generated SVG elements.
+- **UUIDs**: All data uses UUIDs for `docId` to ensure uniqueness.
 
 ## Libraries
 

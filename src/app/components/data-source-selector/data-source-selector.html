@@ -1,0 +1,44 @@
+<div class="selector-container">
+  <header class="selector-header">
+    <h1 class="page-title">Data Source Settings</h1>
+    <p class="page-subtitle">Choose how you want to manage your work order data.</p>
+  </header>
+
+  <div class="cards-grid">
+    <div class="source-card" [class.active]="store.dataSource() === 'local'" (click)="selectSource('local')">
+      <div class="card-icon local-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 8V21H3V8M1 3H23V8H1V3ZM10 12H14" />
+        </svg>
+      </div>
+      <div class="card-content">
+        <h3>Local Storage</h3>
+        <p>Save data directly in your browser. Fast, offline-first, but restricted to this device.</p>
+        @if (store.dataSource() === 'local') {
+          <span class="status-badge">ACTIVE</span>
+        }
+      </div>
+    </div>
+
+    <div class="source-card" [class.active]="store.dataSource() === 'server'" (click)="selectSource('server')">
+      <div class="card-icon server-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 12H19M5 12L11 6M5 12L11 18" transform="rotate(180 12 12)" />
+          <path d="M12 21V15M12 9V3" />
+          <rect x="2" y="9" width="20" height="6" rx="1" />
+        </svg>
+      </div>
+      <div class="card-content">
+        <h3>Remote Server</h3>
+        <p>Connect to the Naologic Cloud API. Sync data across devices and collaborate in real-time.</p>
+        @if (store.dataSource() === 'server') {
+          <span class="status-badge">ACTIVE</span>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn-primary" routerLink="/">Go to Timeline</button>
+  </div>
+</div>

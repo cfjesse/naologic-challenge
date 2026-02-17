@@ -1,0 +1,58 @@
+<div class="modal-header">
+  <h4 class="modal-title">Export to CSV</h4>
+  <button type="button" class="btn-close-custom" aria-label="Close" (click)="activeModal.dismiss()">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18"></line>
+      <line x1="6" y1="6" x2="18" y2="18"></line>
+    </svg>
+  </button>
+</div>
+<div class="modal-body">
+  <div class="export-options">
+    <label for="filename" class="form-label">File Name</label>
+    <div class="input-group">
+      <input type="text" id="filename" class="form-control" [ngModel]="filename()"
+        (ngModelChange)="filename.set($event)" placeholder="Enter name (e.g. march_orders)" required>
+      <span class="extension">.csv</span>
+    </div>
+    <div class="validation-msg" [class.error]="!isValidName()">
+      Use only letters, numbers, hyphens, and underscores.
+    </div>
+  </div>
+
+  <div class="selection-list">
+    <div class="list-header">
+      <div class="col-check">
+        <input type="checkbox" [checked]="orders().length > 0 && selectedOrderIds().size === orders().length"
+          (change)="toggleAll($event)">
+      </div>
+      <div class="col-name">Work Order Name</div>
+      <div class="col-wc">Work Center</div>
+      <div class="col-dates">Dates</div>
+    </div>
+
+    <div class="list-body">
+      @for (order of orders(); track order.docId) {
+      <div class="list-row" [class.selected]="selectedOrderIds().has(order.docId)">
+        <div class="col-check">
+          <input type="checkbox" [checked]="selectedOrderIds().has(order.docId)"
+            (change)="toggleOrder(order.docId, $event)">
+        </div>
+        <div class="col-name">{{ order.data.name }}</div>
+        <div class="col-wc">{{ store.getWorkCenterName(order.data.workCenterId) }}</div>
+        <div class="col-dates">
+          {{ order.data.startDate | date:'MMM d' }} - {{ order.data.endDate | date:'MMM d' }}
+        </div>
+      </div>
+      }
+    </div>
+  </div>
+</div>
+<div class="modal-footer">
+  <button type="button" class="btn-cancel" (click)="activeModal.dismiss()">Cancel</button>
+  <button type="button" class="btn-confirm" [disabled]="!isValidName() || selectedOrderIds().size === 0"
+    (click)="download()">
+    Download CSV
+  </button>
+</div>

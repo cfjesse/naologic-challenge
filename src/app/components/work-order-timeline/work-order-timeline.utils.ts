@@ -1,7 +1,5 @@
-import { DateTime, Interval } from 'luxon';
+import { DateTime } from 'luxon';
 import { WorkOrderStatus, TimeScale } from '../../models/work-order.model';
-
-import { ColumnHeader } from './work-order-timeline.types';
 
 /* ── Constants ── */
 export const LEFT_PANEL_WIDTH = 280;
@@ -127,20 +125,6 @@ export function roundToDay(date: Date): Date {
 
 /* ── Deep Calculation Helpers ── */
 
-export function calculateBarLeft(order: any, viewportStartMs: number, totalSpanMs: number): number {
-  if (totalSpanMs <= 0) return 0;
-  return ((new Date(order.data.startDate).getTime() - viewportStartMs) / totalSpanMs) * 100;
-}
-
-export function calculateBarWidth(order: any, totalSpanMs: number): number {
-  if (totalSpanMs <= 0) return 0;
-  return (
-    ((new Date(order.data.endDate).getTime() -
-      new Date(order.data.startDate).getTime()) /
-      totalSpanMs) *
-    100
-  );
-}
 
 /**
  * Calculates how many columns of `columnMinWidth` fit into one screen
@@ -160,37 +144,6 @@ export function getEndDateForColumnCount(start: Date, scale: TimeScale, columnCo
   return interval.offset(interval.floor(start), columnCount);
 }
 
-/**
- * Generates ColumnHeader[] for the exact viewport range.
- * Each column is one timescale unit wide, positioned as a percentage of the total span.
- */
-export function calculateColumns(scale: TimeScale, start: Date, end: Date, now: Date): ColumnHeader[] {
-  const totalMs = end.getTime() - start.getTime();
-  if (totalMs <= 0) return [];
-
-  const interval = getInterval(scale);
-
-  const ticks = interval.range(interval.floor(start), end);
-
-  return ticks.map((tickDate) => {
-    const colStart = tickDate.getTime();
-    const colEnd = interval.offset(tickDate, 1).getTime();
-
-    const renderStart = Math.max(start.getTime(), colStart);
-    const renderEnd = Math.min(end.getTime(), colEnd);
-
-    const width = ((renderEnd - renderStart) / totalMs) * 100;
-    const left = ((renderStart - start.getTime()) / totalMs) * 100;
-
-    return {
-      label: formatColumnLabel(tickDate, scale),
-      date: new Date(tickDate),
-      isCurrent: isDateInCurrentPeriod(tickDate, now, scale),
-      left,
-      width
-    };
-  }).filter(col => col.width > 0);
-}
 
 /**
  * Calculates the initial viewport start date from work orders.

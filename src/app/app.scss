@@ -1,3 +1,56 @@
 :host {
   display: block;
 }
+
+/* Navigation & Actions */
+.nav-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.nav-icon {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: #6b7280;
+  text-decoration: none;
+  background: transparent;
+  transition: all 0.2s;
+  padding: 0 12px;
+  font-weight: 500;
+  
+  &:hover {
+    background: #f3f4f6;
+    color: #111827;
+  }
+  
+  &.active {
+    background: rgba(80, 70, 229, 0.1);
+    color: #5046e5;
+  }
+
+  svg {
+    margin-right: 8px;
+  }
+}
+
+.btn-logout {
+  background: transparent;
+  border: none;
+  color: #ef4444; 
+  padding: 8px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  
+  &:hover {
+    background: #fee2e2;
+    color: #b91c1c;
+  }
+}

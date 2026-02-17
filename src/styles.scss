@@ -120,6 +120,14 @@ app-root {
   min-height: 100vh;
 }
 
+.brand-primary {
+  color: var(--color-brand-primary);
+}
+
+.brand-accent {
+  color: var(--color-brand-accent);
+} 
+
 /* ─── Offcanvas Custom Width ─── */
 .work-order-offcanvas {
   width: 480px !important;

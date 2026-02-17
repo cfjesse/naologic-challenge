@@ -1,0 +1,99 @@
+/* ──────── Active Orders Summary Card ──────── */
+.active-orders-summary {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(27, 31, 59, 0.12), 0 2px 8px rgba(27, 31, 59, 0.08);
+  width: 340px;
+  max-height: 400px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  font-family: 'Circular-Std', sans-serif;
+  animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translate(-50%, -20px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.summary-header {
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #f0f0f5;
+  background: #fafafd;
+}
+
+.summary-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1b1f3b;
+}
+
+.summary-badge {
+  font-size: 12px;
+  font-weight: 700;
+  color: #5046e5;
+  background: rgba(80, 70, 229, 0.1);
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.summary-list {
+  padding: 8px 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.summary-item {
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid #f7f7fb;
+  transition: background 0.1s;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: #fcfcfd;
+  }
+}
+
+.summary-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+
+  &.status-open { background-color: #5046e5; box-shadow: 0 0 0 4px rgba(80, 70, 229, 0.1); }
+  &.status-in-progress { background-color: #7b61ff; box-shadow: 0 0 0 4px rgba(123, 97, 255, 0.1); }
+  &.status-complete { background-color: #15803d; box-shadow: 0 0 0 4px rgba(21, 128, 61, 0.1); }
+  &.status-blocked { background-color: #c2410c; box-shadow: 0 0 0 4px rgba(194, 65, 12, 0.1); }
+}
+
+.summary-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1b1f3b;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.summary-dates {
+  font-size: 11px;
+  color: #8b8fa3;
+  white-space: nowrap;
+}

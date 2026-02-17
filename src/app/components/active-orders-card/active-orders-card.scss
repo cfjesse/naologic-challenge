@@ -1,0 +1,178 @@
+$font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+:host {
+  display: block;
+  width: 100%;
+  padding: 24px 32px;
+  background-color: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-border-medium);
+}
+
+.active-orders-card {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.period-label {
+  font-family: $font-family;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-main);
+  margin: 0;
+}
+
+.count-badge {
+  font-family: $font-family;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background-color: var(--color-brand-primary);
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.tags-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.empty-state {
+  font-family: $font-family;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  font-style: italic;
+  padding: 12px 0;
+}
+
+/* ──────── Order Tag ──────── */
+.order-tag {
+  background: #ffffff;
+  border: 1px solid var(--color-border-medium);
+  border-radius: 8px;
+  padding: 10px 14px;
+  min-width: 200px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  }
+}
+
+.tag-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.2); }
+  70% { box-shadow: 0 0 0 4px rgba(0, 0, 0, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: pulse 2s infinite;
+
+  .status-open & { 
+    background-color: var(--status-open-text); 
+    box-shadow: 0 0 0 0 rgba(80, 70, 229, 0.4);
+    animation-name: pulse-open;
+  }
+  .status-in-progress & { 
+    background-color: var(--status-progress-text); 
+    box-shadow: 0 0 0 0 rgba(123, 97, 255, 0.4);
+    animation-name: pulse-progress;
+  }
+  .status-complete & { 
+    background-color: var(--status-complete-text); 
+    box-shadow: 0 0 0 0 rgba(46, 125, 50, 0.4);
+    animation-name: pulse-complete;
+  }
+  .status-blocked & { 
+    background-color: var(--status-blocked-text); 
+    box-shadow: 0 0 0 0 rgba(245, 127, 23, 0.4);
+    animation-name: pulse-blocked;
+  }
+}
+
+@keyframes pulse-open {
+  0% { box-shadow: 0 0 0 0 rgba(80, 70, 229, 0.4); }
+  70% { box-shadow: 0 0 0 4px rgba(80, 70, 229, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(80, 70, 229, 0); }
+}
+@keyframes pulse-progress {
+  0% { box-shadow: 0 0 0 0 rgba(123, 97, 255, 0.4); }
+  70% { box-shadow: 0 0 0 4px rgba(123, 97, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(123, 97, 255, 0); }
+}
+@keyframes pulse-complete {
+  0% { box-shadow: 0 0 0 0 rgba(46, 125, 50, 0.4); }
+  70% { box-shadow: 0 0 0 4px rgba(46, 125, 50, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(46, 125, 50, 0); }
+}
+@keyframes pulse-blocked {
+  0% { box-shadow: 0 0 0 0 rgba(245, 127, 23, 0.4); }
+  70% { box-shadow: 0 0 0 4px rgba(245, 127, 23, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 127, 23, 0); }
+}
+
+.order-name {
+  font-family: $font-family;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: aggregate;
+  max-width: 150px;
+}
+
+.tag-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-family: $font-family;
+}
+
+.status-label {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  
+  .status-open & { color: var(--status-open-text); }
+  .status-in-progress & { color: var(--status-progress-text); }
+  .status-complete & { color: var(--status-complete-text); }
+  .status-blocked & { color: var(--status-blocked-text); }
+}
+
+.date-range {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+}
+
+.date-icon {
+  font-size: 14px;
+  color: var(--color-text-tertiary); /* Need to ensure this var exists or assume #b0b4c8 */
+}

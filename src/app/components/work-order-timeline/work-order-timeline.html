@@ -1,134 +1,90 @@
 <div class="timeline-container">
   <!-- Header -->
-  <!-- Header -->
   <header class="timeline-header">
     <div class="header-content-left">
       <span class="brand">NAO<span class="brand-accent">LOGIC</span></span>
       <h1 class="page-title">Work Orders</h1>
 
-      <div class="timescale-wrapper">
-        <div class="timescale-control">
-          <!-- ng-select for timescale -->
-          <ng-select class="timescale-select" [items]="timeScaleOptions" [clearable]="false" [searchable]="false"
-            [ngModel]="timeScale" (ngModelChange)="onTimeScaleChange($event)" [title]="'Select timescale'">
+      <div class="main-content-wrapper">
+        <div class="timescale-wrapper">
+          <div class="timescale-control">
+            <ng-select class="timescale-select" [items]="timeScaleOptions" [clearable]="false" [searchable]="false"
+              [ngModel]="timeScale" (ngModelChange)="onTimeScaleChange($event)" [title]="'Select timescale'">
 
-            <ng-template ng-label-tmp let-item="item">
-              <span class="timescale-label">Timescale</span>
-              <span class="timescale-value">{{ item }}</span>
-            </ng-template>
+              <ng-template ng-label-tmp let-item="item">
+                <span class="timescale-label">Timescale</span>
+                <span class="timescale-value">{{ item }}</span>
+              </ng-template>
 
-            <ng-template ng-option-tmp let-item="item">
-              <span class="timescale-option">{{ item }}</span>
-            </ng-template>
-          </ng-select>
-        </div>
+              <ng-template ng-option-tmp let-item="item">
+                <span class="timescale-option">{{ item }}</span>
+              </ng-template>
+            </ng-select>
+          </div>
 
-        <div class="status-filter-control ms-3">
-          <!-- ng-select for status filter -->
-          <ng-select class="status-select" [items]="statusFilterOptions" [clearable]="false" [searchable]="false"
-            [ngModel]="store.statusFilter()" (ngModelChange)="onStatusFilterChange($event)"
-            [title]="'Filter by status'">
+          <div class="status-filter-control ms-3">
+            <ng-select class="status-select" [items]="statusFilterOptions" [clearable]="false" [searchable]="false"
+              [ngModel]="store.statusFilter()" (ngModelChange)="onStatusFilterChange($event)"
+              [title]="'Filter by status'">
 
-            <ng-template ng-label-tmp let-item="item">
-              <span class="timescale-label">Status</span>
-              <span class="timescale-value">{{ item | uppercase }}</span>
-            </ng-template>
+              <ng-template ng-label-tmp let-item="item">
+                <span class="timescale-label">Status</span>
+                <span class="timescale-value">{{ item | uppercase }}</span>
+              </ng-template>
 
-            <ng-template ng-option-tmp let-item="item">
-              <span class="timescale-option">{{ item | uppercase }}</span>
-            </ng-template>
-          </ng-select>
+              <ng-template ng-option-tmp let-item="item">
+                <span class="timescale-option">{{ item | uppercase }}</span>
+              </ng-template>
+            </ng-select>
+          </div>
         </div>
       </div>
     </div>
 
     <div class="header-content-right">
+      <button class="btn-today me-2" (click)="openExport()">Export CSV</button>
       <button class="btn-today" (click)="centerViewportOnToday()">Today</button>
     </div>
   </header>
 
   <!-- Gantt Grid -->
-  <div class="gantt-wrapper" #ganttWrapper (scroll)="onGanttScroll($event)">
+  <div class="gantt-wrapper" #ganttWrapper (scroll)="onGanttScroll()">
     <!-- Left panel: Work Centers -->
     <div class="left-panel">
       <div class="left-header">Work Center</div>
       @for (wc of store.workCenters(); track wc.docId) {
-      <div class="left-row" [class.even]="$even">
-        {{ wc.data.name }}
-      </div>
+        <div class="left-row" [class.even]="$even">
+          {{ wc.data.name }}
+        </div>
       }
     </div>
 
-    <!-- Right panel: Timeline area -->
-    <div class="right-panel" #timelineArea>
-      <!-- Column headers -->
-      <div class="column-headers" [style.min-width.px]="columns.length * columnMinWidth">
-        @for (col of columns; track col.date) {
-        <div class="col-header" [class.current-period]="col.isCurrent" [style.left.%]="col.left"
-          [style.width.%]="col.width">
-          <span class="col-label">{{ col.label }}</span>
-        </div>
-        }
-      </div>
-
-      <!-- Timeline rows -->
-      @for (wc of store.workCenters(); track wc.docId) {
-      <div class="timeline-row" [class.even]="$even" [style.min-width.px]="columns.length * columnMinWidth"
-        (mousedown)="onTimelineMouseDown($event, wc.docId)" (mouseup)="onTimelineMouseUp($event, wc.docId)"
-        (mousemove)="onTimelineMouseMove($event)" (mouseleave)="onTimelineMouseLeave()">
-        <!-- Grid columns -->
-        @for (col of columns; track col.date) {
-        <div class="grid-cell" [class.current-period]="col.isCurrent" [style.left.%]="col.left"
-          [style.width.%]="col.width"></div>
-        }
-
-        <!-- Work order bars -->
-        @for (order of getOrdersForWorkCenter(wc.docId); track order.docId) {
-        <div class="bar bar-{{order.data.status}}" [style.left.%]="getBarLeft(order)"
-          [style.width.%]="getBarWidth(order)" (mousedown)="onBarMouseDown($event, order)"
-          [title]="order.data.name + ' (' + order.data.startDate + ' – ' + order.data.endDate + ')'">
-          <!-- Left resize handle -->
-          <div class="resize-handle resize-handle-left" (mousedown)="onResizeMouseDown($event, order, 'start')"></div>
-
-          <span class="bar-title">{{ order.data.name }}</span>
-          <span class="bar-status status-{{order.data.status}}">
-            {{ getStatusLabel(order.data.status) }}
-          </span>
-
-          <!-- 3-dot ellipsis button -->
-          <button class="bar-ellipsis" (click)="onEllipsisClick($event, order)" (mousedown)="$event.stopPropagation()"
-            type="button">
-            ⋯
-          </button>
-
-          <!-- Right resize handle -->
-          <div class="resize-handle resize-handle-right" (mousedown)="onResizeMouseDown($event, order, 'end')"></div>
-        </div>
-
-        <!-- Ellipsis dropdown menu -->
-        @if (activeMenu?.orderId === order.docId) {
-        <div class="ellipsis-dropdown" [style.left.%]="getBarLeft(order) + getBarWidth(order)" [style.top.px]="10"
-          (mousedown)="$event.stopPropagation()">
-          <button class="dropdown-item" (click)="onMenuEdit(order)">Edit</button>
-          <button class="dropdown-item dropdown-item-delete" (click)="onMenuDelete(order)">Delete</button>
-        </div>
-        }
-        }
-      </div>
-      }
-    </div>
+    <!-- D3 SVG Chart -->
+    <svg #ganttSvg class="gantt-svg"></svg>
   </div>
 
-  <!-- Tooltip -->
-  @if (tooltip.visible) {
-  <div class="tooltip-popup" [style.top.px]="tooltip.y - 40" [style.left.px]="tooltip.x">
-    {{ tooltip.text }}
-  </div>
+  @if (activeOrders.length > 0) {
+    <app-active-orders-card [activeOrders]="activeOrders"
+      [periodLabel]="cursorPeriodLabel">
+    </app-active-orders-card>
   }
 </div>
 
-<!-- Slide-out panel -->
+<!-- Tooltip -->
+@if (tooltip.visible) {
+  <div class="tooltip-popup" [style.top.px]="tooltip.y - 40" [style.left.px]="tooltip.x">
+    {{ tooltip.text }}
+  </div>
+}
 
+<!-- Ellipsis Dropdown Menu -->
+@if (activeMenu) {
+  <div class="ellipsis-dropdown" [style.top.px]="activeMenu.y" [style.left.px]="activeMenu.x"
+    (mousedown)="$event.stopPropagation()">
+    <button class="dropdown-item" (click)="onMenuEdit()">Edit</button>
+    <button class="dropdown-item dropdown-item-delete" (click)="onMenuDelete()">Delete</button>
+  </div>
+}
 
 <!-- Confirm Delete Dialog -->
 <app-confirm-dialog [visible]="confirmVisible" [title]="'Delete Work Order'"

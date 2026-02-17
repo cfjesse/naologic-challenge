@@ -1,0 +1,28 @@
+<div class="active-orders-card" @cardAnimation>
+  <div class="card-header">
+    <h3 class="period-label">Activity for {{ periodLabel }}</h3>
+    <span class="count-badge">{{ activeOrders.length }} active</span>
+  </div>
+
+  <div class="tags-cloud" [@listAnimation]="activeOrders.length">
+    @if (activeOrders.length === 0) {
+    <div class="empty-state" @itemAnimation>No active work orders for this period.</div>
+    }
+
+    @for (order of activeOrders; track trackByOrderId($index, order)) {
+    <div class="order-tag" [ngClass]="'status-' + order.data.status" @itemAnimation>
+      <div class="tag-header">
+        <span class="status-dot"></span>
+        <span class="order-name" [title]="order.data.name">{{ order.data.name }}</span>
+      </div>
+      <div class="tag-details">
+        <span class="status-label">{{ order.data.status | titlecase }}</span>
+        <span class="date-range">
+          <i class="material-icons date-icon">event</i>
+          {{ order.data.startDate | slice:5 }} — {{ order.data.endDate | slice:5 }}
+        </span>
+      </div>
+    </div>
+    }
+  </div>
+</div>
