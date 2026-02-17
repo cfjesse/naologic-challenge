@@ -33,6 +33,7 @@
     "@ng-bootstrap/ng-bootstrap": "^20.0.0",
     "@ng-select/ng-select": "^21.4.0",
     "@ngrx/signals": "^21.0.1",
+    "@popperjs/core": "^2.11.8",
     "@types/uuid": "^10.0.0",
     "bootstrap": "^5.3.8",
     "d3": "^7.9.0",
@@ -42,13 +43,17 @@
     "uuid": "^13.0.0"
   },
   "devDependencies": {
+    "@analogjs/vite-plugin-angular": "^2.2.3",
+    "@analogjs/vitest-angular": "^2.2.3",
     "@angular/build": "^21.1.2",
     "@angular/cli": "^21.1.2",
     "@angular/compiler-cli": "^21.1.0",
+    "@angular/platform-browser-dynamic": "^21.1.4",
     "@types/d3": "^7.4.3",
     "@types/luxon": "^3.7.1",
     "jsdom": "^27.1.0",
     "typescript": "~5.9.2",
-    "vitest": "^4.0.8"
+    "vitest": "^4.0.8",
+    "vitest-canvas-mock": "^1.1.3"
   }
 }

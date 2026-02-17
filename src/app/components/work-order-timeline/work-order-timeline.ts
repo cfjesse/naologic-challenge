@@ -145,6 +145,25 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
      LIFECYCLE
      ══════════════════════════════════════════════ */
 
+  constructor() {
+    // REDRAW ON STORE CHANGES
+    effect(() => {
+      // Signals to watch
+      this.store.workOrders();
+      this.store.workCenters();
+      this.store.statusFilter();
+      
+      // Force a UI update after a microtask to ensure Angular 
+      // has updated the sidebar DOM (left-panel)
+      setTimeout(() => {
+        if (this.svg) {
+          this.renderChart();
+          this.cdr.detectChanges();
+        }
+      }, 0);
+    });
+  }
+
   ngOnInit(): void {
     this.api.getSettings().pipe(takeUntil(this.destroy$)).subscribe(settings => {
       if (settings && settings.timeScale) {
@@ -159,24 +178,6 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
 
   ngAfterViewInit(): void {
     this.initD3();
-    
-    // REDRAW ON STORE CHANGES
-    effect(() => {
-      // Signals to watch
-      const orders = this.store.workOrders();
-      const centers = this.store.workCenters();
-      const filter = this.store.statusFilter();
-      
-      // Force a UI update after a microtask to ensure Angular 
-      // has updated the sidebar DOM (left-panel)
-      setTimeout(() => {
-        if (this.svg) {
-          this.renderChart();
-          this.cdr.detectChanges();
-        }
-      }, 0);
-    });
-
     this.renderChart();
   }
 

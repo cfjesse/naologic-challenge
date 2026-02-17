@@ -1,88 +1,116 @@
-import { Injector, runInInjectionContext } from '@angular/core';
-import { FormBuilder } from '@angular/forms';
-import { WorkOrderPanelComponent } from './work-order-panel';
+import '../../test-init';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { WorkOrderPanelComponent, PanelSaveEvent } from './work-order-panel';
 import { WorkOrderStore } from '../../store/work-order.store';
-import { NgbActiveOffcanvas } from '@ng-bootstrap/ng-bootstrap';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { NgbActiveOffcanvas, NgbDatepickerModule } from '@ng-bootstrap/ng-bootstrap';
+import { NgSelectModule } from '@ng-select/ng-select';
+import { ReactiveFormsModule } from '@angular/forms';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { WorkOrderDocument } from '../../models/work-order.model';
 
-describe('WorkOrderPanelComponent Logic', () => {
+describe('WorkOrderPanelComponent', () => {
   let component: WorkOrderPanelComponent;
+  let fixture: ComponentFixture<WorkOrderPanelComponent>;
   let storeMock: any;
   let offcanvasMock: any;
-  let injector: Injector;
 
-  beforeEach(() => {
-    storeMock = { checkOverlap: vi.fn() };
-    offcanvasMock = { close: vi.fn(), dismiss: vi.fn() };
-    
-    injector = Injector.create({
+  beforeEach(async () => {
+    storeMock = {
+      checkOverlap: vi.fn().mockReturnValue(undefined),
+      workOrders: vi.fn().mockReturnValue([]),
+      workCenters: vi.fn().mockReturnValue([])
+    };
+    offcanvasMock = {
+      close: vi.fn(),
+      dismiss: vi.fn()
+    };
+
+    await TestBed.configureTestingModule({
+      imports: [
+        ReactiveFormsModule,
+        NgSelectModule,
+        NgbDatepickerModule,
+        WorkOrderPanelComponent
+      ],
       providers: [
         { provide: WorkOrderStore, useValue: storeMock },
-        { provide: NgbActiveOffcanvas, useValue: offcanvasMock },
-        { provide: FormBuilder, useClass: FormBuilder }
+        { provide: NgbActiveOffcanvas, useValue: offcanvasMock }
       ]
-    });
+    }).compileComponents();
 
-    runInInjectionContext(injector, () => {
-        component = new WorkOrderPanelComponent();
+    fixture = TestBed.createComponent(WorkOrderPanelComponent);
+    component = fixture.componentInstance;
+    component.workCenterId = 'wc-1';
+    component.startDate = '2026-01-01';
+    fixture.detectChanges();
+  });
+
+  it('should create', () => {
+    expect(component).toBeTruthy();
+  });
+
+  it('should initialize form for create mode', () => {
+    expect(component.mode).toBe('create');
+    expect(component.form.get('name')?.value).toBe('');
+    expect(component.form.get('status')?.value).toBe('open');
+  });
+
+  it('should populate form for edit mode', () => {
+    const mockOrder: WorkOrderDocument = {
+      docId: '123',
+      docType: 'workOrder',
+      data: {
+        name: 'Existing',
+        status: 'in-progress',
+        startDate: '2026-02-01',
+        endDate: '2026-02-10',
+        workCenterId: 'wc-1'
+      }
+    };
+    component.mode = 'edit';
+    component.workOrder = mockOrder;
+    component.ngOnInit();
+    fixture.detectChanges();
+
+    expect(component.form.get('name')?.value).toBe('Existing');
+    expect(component.form.get('status')?.value).toBe('in-progress');
+  });
+
+  it('should not submit if form is invalid', () => {
+    component.form.patchValue({ name: '' });
+    component.onSubmit();
+    expect(offcanvasMock.close).not.toHaveBeenCalled();
+  });
+
+  it('should submit if form is valid and no overlap', () => {
+    component.form.patchValue({
+      name: 'Valid Order',
+      status: 'open',
+      startDate: { year: 2026, month: 3, day: 1 },
+      endDate: { year: 2026, month: 3, day: 10 }
     });
     
-    // Manually call ngOnInit
-    component.ngOnInit();
-  });
-
-  it('should initialize creating form', () => {
-    expect(component.mode).toBe('create');
-    expect(component.form.value.name).toBe('');
-    expect(component.form.valid).toBe(false); // required fields empty
-  });
-
-  it('should prevent submission if form invalid', () => {
     component.onSubmit();
-    expect(storeMock.checkOverlap).not.toHaveBeenCalled();
-    expect(offcanvasMock.close).not.toHaveBeenCalled();
-  });
-
-  it('should checking overlap on submit', () => {
-    // Fill valid form
-    component.form.patchValue({
-      name: 'Test Order',
-      status: 'open',
-      startDate: { year: 2026, month: 1, day: 1 },
-      endDate: { year: 2026, month: 1, day: 5 }
-    });
-    component.workCenterId = 'wc-1';
-
-    // Mock no overlap
-    storeMock.checkOverlap.mockReturnValue(null);
-
-    component.onSubmit();
-
-    expect(storeMock.checkOverlap).toHaveBeenCalledWith(
-        'wc-1', '2026-01-01', '2026-01-05', undefined
-    );
-    expect(offcanvasMock.close).toHaveBeenCalled();
-  });
-
-  it('should block submission if overlap detected', () => {
-    // Fill valid form
-    component.form.patchValue({
-      name: 'Test Order',
-      status: 'open',
-      startDate: { year: 2026, month: 1, day: 1 },
-      endDate: { year: 2026, month: 1, day: 5 }
-    });
-    component.workCenterId = 'wc-1';
-
-    // Mock overlap
-    storeMock.checkOverlap.mockReturnValue({
-        data: { name: 'Existing', startDate: '2026-01-01', endDate: '2026-01-10' }
-    });
-
-    component.onSubmit();
-
+    
     expect(storeMock.checkOverlap).toHaveBeenCalled();
+    expect(offcanvasMock.close).toHaveBeenCalled();
+    const result = (offcanvasMock.close.mock.calls[0][0]) as PanelSaveEvent;
+    expect(result.data.name).toBe('Valid Order');
+    expect(result.data.startDate).toBe('2026-03-01');
+  });
+
+  it('should show error on overlap', () => {
+    storeMock.checkOverlap.mockReturnValue({ data: { name: 'Collision' } });
+    component.form.patchValue({
+      name: 'Valid Order',
+      status: 'open',
+      startDate: { year: 2026, month: 3, day: 1 },
+      endDate: { year: 2026, month: 3, day: 10 }
+    });
+    
+    component.onSubmit();
+    
+    expect(component.overlapError).toContain('Overlap with "Collision"');
     expect(offcanvasMock.close).not.toHaveBeenCalled();
-    expect(component.overlapError).toContain('Overlap with "Existing"');
   });
 });

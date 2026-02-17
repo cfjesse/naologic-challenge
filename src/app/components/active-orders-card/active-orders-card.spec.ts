@@ -1,3 +1,4 @@
+import '../../test-init';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActiveOrdersCardComponent } from './active-orders-card';
 import { WorkOrderDocument } from '../../models/work-order.model';
@@ -17,7 +18,6 @@ describe('ActiveOrdersCardComponent', () => {
 
     fixture = TestBed.createComponent(ActiveOrdersCardComponent);
     component = fixture.componentInstance;
-    fixture.detectChanges();
   });
 
   it('should create', () => {

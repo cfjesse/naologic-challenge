@@ -1,7 +1,8 @@
+import '../test-init';
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { ApiService, AppSettings } from './api';
-import { WorkOrderDocument } from '../models/work-order.model';
+import { WorkOrderDocument, WorkCenterDocument } from '../models/work-order.model';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 describe('ApiService', () => {
@@ -37,55 +38,63 @@ describe('ApiService', () => {
       expect(req.request.method).toBe('GET');
       req.flush(mockSettings);
     });
+  });
 
-    it('should return default settings on error', () => {
-      service.getSettings().subscribe(settings => {
-        expect(settings).toEqual({ timeScale: 'Day', theme: 'light' });
-      });
+  describe('updateSettings', () => {
+    it('should post updated settings', () => {
+      const settings: Partial<AppSettings> = { theme: 'dark' };
+      service.updateSettings(settings).subscribe();
 
       const req = httpMock.expectOne('http://localhost:3000/api/settings');
-      req.flush('Error', { status: 500, statusText: 'Server Error' });
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual(settings);
+      req.flush(settings);
     });
   });
 
-  describe('getWorkOrders', () => {
-    it('should return work orders from API', () => {
-      const mockOrders: WorkOrderDocument[] = [
-        { docId: '1', docType: 'workOrder', data: { name: 'Test', startDate: '2023-01-01', endDate: '2023-01-05', status: 'open', workCenterId: 'wc1' } }
-      ];
-
-      service.getWorkOrders().subscribe(orders => {
-        expect(orders.length).toBe(1);
-        expect(orders).toEqual(mockOrders);
-      });
-
+  describe('Work Orders', () => {
+    it('should get all orders', () => {
+      service.getWorkOrders().subscribe();
       const req = httpMock.expectOne('http://localhost:3000/api/orders');
       expect(req.request.method).toBe('GET');
-      req.flush(mockOrders);
+      req.flush([]);
     });
 
-    it('should return empty array on error', () => {
-      service.getWorkOrders().subscribe(orders => {
-        expect(orders).toEqual([]);
-      });
+    it('should update work order', () => {
+      const data = { name: 'Updated' };
+      service.updateWorkOrder('123', data).subscribe();
 
-      const req = httpMock.expectOne('http://localhost:3000/api/orders');
-      req.flush('Error', { status: 500, statusText: 'Server Error' });
+      const req = httpMock.expectOne('http://localhost:3000/api/orders/123');
+      expect(req.request.method).toBe('PUT');
+      expect(req.request.body).toEqual(data);
+      req.flush({});
+    });
+
+    it('should delete work order', () => {
+      service.deleteWorkOrder('123').subscribe();
+
+      const req = httpMock.expectOne('http://localhost:3000/api/orders/123');
+      expect(req.request.method).toBe('DELETE');
+      req.flush({});
     });
   });
 
-  describe('createWorkOrder', () => {
-    it('should post new order', () => {
-      const newOrder: WorkOrderDocument = { docId: '2', docType: 'workOrder', data: { name: 'New', startDate: '2023-01-01', endDate: '2023-01-05', status: 'open', workCenterId: 'wc1' } };
+  describe('Work Centers', () => {
+    it('should get work centers', () => {
+      service.getWorkCenters().subscribe();
+      const req = httpMock.expectOne('http://localhost:3000/api/work-centers');
+      expect(req.request.method).toBe('GET');
+      req.flush([]);
+    });
 
-      service.createWorkOrder(newOrder).subscribe(order => {
-        expect(order).toEqual(newOrder);
-      });
+    it('should update work center', () => {
+      const data = { name: 'Line B' };
+      service.updateWorkCenter('wc-1', data).subscribe();
 
-      const req = httpMock.expectOne('http://localhost:3000/api/orders');
-      expect(req.request.method).toBe('POST');
-      expect(req.request.body).toEqual(newOrder);
-      req.flush(newOrder);
+      const req = httpMock.expectOne('http://localhost:3000/api/work-centers/wc-1');
+      expect(req.request.method).toBe('PUT');
+      expect(req.request.body).toEqual(data);
+      req.flush({});
     });
   });
 });

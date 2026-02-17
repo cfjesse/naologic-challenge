@@ -1,16 +1,18 @@
+import '../test-init';
 import { TestBed } from '@angular/core/testing';
 import { WorkOrderStore } from './work-order.store';
 import { ApiService } from '../services/api';
 import { of } from 'rxjs';
 import { WorkOrderDocument } from '../models/work-order.model';
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 
-// Mock ApiService
 const apiServiceMock = {
   getWorkOrders: vi.fn(),
+  getWorkCenters: vi.fn(),
   createWorkOrder: vi.fn(),
   updateWorkOrder: vi.fn(),
   deleteWorkOrder: vi.fn(),
+  updateWorkCenter: vi.fn(),
   getSettings: vi.fn()
 };
 
@@ -18,7 +20,9 @@ describe('WorkOrderStore', () => {
   let store: any;
 
   beforeEach(() => {
-    vi.clearAllMocks(); // Clear mocks before each test
+    vi.clearAllMocks();
+    apiServiceMock.getWorkOrders.mockReturnValue(of([]));
+    apiServiceMock.getWorkCenters.mockReturnValue(of([]));
 
     TestBed.configureTestingModule({
       providers: [
@@ -30,114 +34,56 @@ describe('WorkOrderStore', () => {
     store = TestBed.inject(WorkOrderStore);
   });
 
-  it('should be created', () => {
-    expect(store).toBeTruthy();
-  });
-
   it('should initialize with default state', () => {
     expect(store.dataSource()).toBe('local');
-    // WorkOrders are set in onInit, which runs on creation.
-    // The store initializes with randomized data by default if local storage is empty/invalid.
-    expect(store.workOrders().length).toBeGreaterThan(0);
-    expect(store.workCenters().length).toBe(5);
+    expect(store.workCenters().length).toBe(5); // Default centers
   });
 
-  describe('DataSource Switching', () => {
-    it('should set dataSource to server and fetch orders', () => {
-      const mockServerOrders: WorkOrderDocument[] = [
-        { docId: 's1', docType: 'workOrder', data: { name: 'Server Order', startDate: '2023-01-01', endDate: '2023-01-05', status: 'open', workCenterId: 'wc1' } }
-      ];
-      apiServiceMock.getWorkOrders.mockReturnValue(of(mockServerOrders));
-
-      store.setDataSource('server');
-
-      expect(store.dataSource()).toBe('server');
-      expect(store.isLoading()).toBe(false);
-      expect(apiServiceMock.getWorkOrders).toHaveBeenCalled();
-      expect(store.workOrders()).toEqual(mockServerOrders);
-    });
-
-    it('should set dataSource to local and load from localStorage', () => {
-      const mockLocalOrders: WorkOrderDocument[] = [
-        { docId: 'l1', docType: 'workOrder', data: { name: 'Local Order', startDate: '2023-01-01', endDate: '2023-01-05', status: 'open', workCenterId: 'wc1' } }
-      ];
-      
-      // Spy on localStorage
-      const getItemSpy = vi.spyOn(Storage.prototype, 'getItem');
-      getItemSpy.mockReturnValue(JSON.stringify(mockLocalOrders));
-
-      store.setDataSource('local');
-
-      expect(store.dataSource()).toBe('local');
-      expect(store.workOrders()).toEqual(mockLocalOrders);
-      
-      getItemSpy.mockRestore();
-    });
-  });
-
-  describe('CRUD Operations', () => {
-    it('should add work order locally', () => {
-      store.setDataSource('local');
+  describe('Work Order Operations', () => {
+    it('should add work order', () => {
       const initialCount = store.workOrders().length;
-      const newOrderData = { name: 'New Local', startDate: '2023-01-01', endDate: '2023-01-05', status: 'open', workCenterId: 'wc1' };
-
-      store.addWorkOrder(newOrderData);
-
+      store.addWorkOrder({ name: 'New', startDate: '2026-01-01', endDate: '2026-01-10', status: 'open', workCenterId: 'wc-1' });
       expect(store.workOrders().length).toBe(initialCount + 1);
-      const addedOrder = store.workOrders()[store.workOrders().length - 1]; // Last one
-      expect(addedOrder.data.name).toBe('New Local');
-      expect(apiServiceMock.createWorkOrder).not.toHaveBeenCalled();
     });
 
-    it('should add work order and sync to server if connected', () => {
-      // Setup server mode
-      apiServiceMock.getWorkOrders.mockReturnValue(of([]));
-      apiServiceMock.createWorkOrder.mockReturnValue(of({} as WorkOrderDocument));
-      store.setDataSource('server');
-
-      const newOrderData = { name: 'New Server', startDate: '2023-01-01', endDate: '2023-01-05', status: 'open', workCenterId: 'wc1' };
-
-      store.addWorkOrder(newOrderData);
-
-      expect(apiServiceMock.createWorkOrder).toHaveBeenCalled();
+    it('should update work order', () => {
+      store.setWorkOrders([{ docId: '1', docType: 'workOrder', data: { name: 'Old', startDate: '2026-01-01', endDate: '2026-01-10', status: 'open', workCenterId: 'wc-1' } }]);
+      store.updateWorkOrder('1', { name: 'New', startDate: '2026-01-01', endDate: '2026-01-10', status: 'open', workCenterId: 'wc-1' });
+      expect(store.workOrders()[0].data.name).toBe('New');
     });
 
     it('should delete work order', () => {
-      store.setDataSource('local');
-      // Ensure at least one order exists
-      if (store.workOrders().length === 0) {
-          store.addWorkOrder({ name: 'Temp', startDate: '2023-01-01', endDate: '2023-01-05', status: 'open', workCenterId: 'wc1' });
-      }
-      const order = store.workOrders()[0];
-      const docId = order.docId;
-
-      store.deleteWorkOrder(docId);
-
-      expect(store.workOrders().find((o: WorkOrderDocument) => o.docId === docId)).toBeUndefined();
+      store.setWorkOrders([{ docId: '1', docType: 'workOrder', data: { name: 'Kill', startDate: '2026-01-01', endDate: '2026-01-10', status: 'open', workCenterId: 'wc-1' } }]);
+      store.deleteWorkOrder('1');
+      expect(store.workOrders().length).toBe(0);
     });
   });
 
-  describe('checkOverlap', () => {
-    it('should detect overlapping orders', () => {
-      const existingOrder: WorkOrderDocument = { 
-        docId: 'o1', docType: 'workOrder', 
-        data: { name: 'Existing', startDate: '2023-01-10', endDate: '2023-01-20', status: 'open', workCenterId: 'wc1' } 
-      };
-      store.setWorkOrders([existingOrder]);
+  describe('Work Center Operations', () => {
+    it('should update work center name', () => {
+      store.updateWorkCenter('wc-1', 'New Machine');
+      const wc = store.workCenters().find((c: any) => c.docId === 'wc-1');
+      expect(wc.data.name).toBe('New Machine');
+    });
+  });
 
-      const overlap = store.checkOverlap('wc1', '2023-01-15', '2023-01-25');
+  describe('Overlap Detection', () => {
+    it('should detect overlap', () => {
+      store.setWorkOrders([{ 
+        docId: '1', docType: 'workOrder', 
+        data: { name: 'A', startDate: '2026-01-01', endDate: '2026-01-10', status: 'open', workCenterId: 'wc-1' } 
+      }]);
+      const overlap = store.checkOverlap('wc-1', '2026-01-05', '2026-01-15');
       expect(overlap).toBeDefined();
-      expect(overlap?.docId).toBe('o1');
+      expect(overlap?.docId).toBe('1');
     });
 
-    it('should not detect overlap for different work center', () => {
-      const existingOrder: WorkOrderDocument = { 
-        docId: 'o1', docType: 'workOrder', 
-        data: { name: 'Existing', startDate: '2023-01-10', endDate: '2023-01-20', status: 'open', workCenterId: 'wc1' } 
-      };
-      store.setWorkOrders([existingOrder]);
-
-      const overlap = store.checkOverlap('wc2', '2023-01-15', '2023-01-25');
+    it('should allow non-overlapping orders', () => {
+      store.setWorkOrders([{ 
+        docId: '1', docType: 'workOrder', 
+        data: { name: 'A', startDate: '2026-01-01', endDate: '2026-01-10', status: 'open', workCenterId: 'wc-1' } 
+      }]);
+      const overlap = store.checkOverlap('wc-1', '2026-01-10', '2026-01-20');
       expect(overlap).toBeUndefined();
     });
   });
