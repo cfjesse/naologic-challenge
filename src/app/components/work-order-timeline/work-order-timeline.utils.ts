@@ -1,7 +1,11 @@
-import * as d3 from 'd3';
+import { DateTime, Interval } from 'luxon';
 import { WorkOrderStatus, TimeScale } from '../../models/work-order.model';
 
-import { ColumnHeader, ActiveMenu, TooltipState } from './work-order-timeline.types';
+import { ColumnHeader } from './work-order-timeline.types';
+
+/* ── Constants ── */
+export const LEFT_PANEL_WIDTH = 280;
+export const COLUMN_MIN_WIDTH = 106.25;
 
 /* ── Status Helpers ── */
 export function getStatusLabel(status: WorkOrderStatus): string {
@@ -33,33 +37,92 @@ export function getStatusClass(status: WorkOrderStatus): string {
 
 /* ── Date & Format Helpers ── */
 export function toIso(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  return DateTime.fromJSDate(d).toFormat('yyyy-MM-dd');
+}
+
+/** Returns the Luxon duration unit matching the timescale */
+function getScaleUnit(scale: TimeScale): 'days' | 'weeks' | 'months' {
+  switch (scale) {
+    case 'Day': return 'days';
+    case 'Week': return 'weeks';
+    case 'Month': return 'months';
+  }
+}
+
+/** Floors a DateTime to the start of the timescale unit */
+function floorToScale(dt: DateTime, scale: TimeScale): DateTime {
+  switch (scale) {
+    case 'Day': return dt.startOf('day');
+    case 'Week': return dt.startOf('week');
+    case 'Month': return dt.startOf('month');
+  }
 }
 
 export function formatColumnLabel(date: Date, scale: TimeScale): string {
+  const dt = DateTime.fromJSDate(date);
   switch (scale) {
-    case 'Day': return d3.timeFormat('%b %d')(date);
+    case 'Day': return dt.toFormat('MMM dd');
     case 'Week': {
-      const endOfWeek = d3.timeDay.offset(date, 6);
-      return `${d3.timeFormat('%b %d')(date)} – ${d3.timeFormat('%b %d')(endOfWeek)}`;
+      const endOfWeek = dt.plus({ days: 6 });
+      return `${dt.toFormat('MMM dd')} – ${endOfWeek.toFormat('MMM dd')}`;
     }
-    case 'Month': return d3.timeFormat('%b %Y')(date);
+    case 'Month': return dt.toFormat('MMM yyyy');
   }
 }
 
 export function isDateInCurrentPeriod(colDate: Date, now: Date, scale: TimeScale): boolean {
+  const dtCol = DateTime.fromJSDate(colDate);
+  const dtNow = DateTime.fromJSDate(now);
   switch (scale) {
-    case 'Day': return d3.timeDay.floor(colDate).getTime() === d3.timeDay.floor(now).getTime();
+    case 'Day':
+      return dtCol.startOf('day').equals(dtNow.startOf('day'));
     case 'Week': {
-      const weekStart = d3.timeWeek.floor(now);
-      const weekEnd = d3.timeWeek.offset(weekStart, 1);
-      return colDate >= weekStart && colDate < weekEnd;
+      const weekStart = dtNow.startOf('week');
+      const weekEnd = weekStart.plus({ weeks: 1 });
+      return dtCol >= weekStart && dtCol < weekEnd;
     }
-    case 'Month': return d3.timeMonth.floor(colDate).getTime() === d3.timeMonth.floor(now).getTime();
+    case 'Month':
+      return dtCol.startOf('month').equals(dtNow.startOf('month'));
   }
+}
+
+/**
+ * Returns an object with floor and offset helpers for the given timescale.
+ * Replaces the d3 TimeInterval interface.
+ */
+export function getInterval(scale: TimeScale) {
+  const unit = getScaleUnit(scale);
+
+  return {
+    /** Floor a JS Date to the start of the timescale unit */
+    floor(date: Date): Date {
+      return floorToScale(DateTime.fromJSDate(date), scale).toJSDate();
+    },
+    /** Offset a JS Date by N timescale units */
+    offset(date: Date, n: number): Date {
+      return DateTime.fromJSDate(date).plus({ [unit]: n }).toJSDate();
+    },
+    /** Generate an array of JS Dates from start to end, one per timescale unit */
+    range(start: Date, end: Date): Date[] {
+      const dates: Date[] = [];
+      let current = floorToScale(DateTime.fromJSDate(start), scale);
+      const endDt = DateTime.fromJSDate(end);
+      while (current < endDt) {
+        dates.push(current.toJSDate());
+        current = current.plus({ [unit]: 1 });
+      }
+      return dates;
+    }
+  };
+}
+
+/** Rounds a JS Date to the nearest day */
+export function roundToDay(date: Date): Date {
+  const dt = DateTime.fromJSDate(date);
+  // If past noon, round up; otherwise round down
+  return dt.hour >= 12
+    ? dt.plus({ days: 1 }).startOf('day').toJSDate()
+    : dt.startOf('day').toJSDate();
 }
 
 /* ── Deep Calculation Helpers ── */
@@ -79,36 +142,43 @@ export function calculateBarWidth(order: any, totalSpanMs: number): number {
   );
 }
 
-export function calculateCursorPositionPercent(cursorDate: Date | null, viewportStart: Date, viewportEnd: Date): number {
-  if (!cursorDate) return -10;
-  const start = viewportStart.getTime();
-  const end = viewportEnd.getTime();
-  const current = cursorDate.getTime();
-  const total = end - start;
-  if (total <= 0) return 0;
-  return ((current - start) / total) * 100;
+/**
+ * Calculates how many columns of `columnMinWidth` fit into one screen
+ * of the right panel (screen width minus left panel).
+ */
+export function getColumnsPerScreen(): number {
+  const rightPanelWidth = Math.max(window.innerWidth - LEFT_PANEL_WIDTH, 400);
+  return Math.ceil(rightPanelWidth / COLUMN_MIN_WIDTH);
 }
 
+/**
+ * Given a start date, timescale, and a total column count,
+ * returns the end date that covers exactly that many timescale units.
+ */
+export function getEndDateForColumnCount(start: Date, scale: TimeScale, columnCount: number): Date {
+  const interval = getInterval(scale);
+  return interval.offset(interval.floor(start), columnCount);
+}
+
+/**
+ * Generates ColumnHeader[] for the exact viewport range.
+ * Each column is one timescale unit wide, positioned as a percentage of the total span.
+ */
 export function calculateColumns(scale: TimeScale, start: Date, end: Date, now: Date): ColumnHeader[] {
   const totalMs = end.getTime() - start.getTime();
   if (totalMs <= 0) return [];
 
-  let interval: d3.TimeInterval;
-  switch (scale) {
-    case 'Day': interval = d3.timeDay; break;
-    case 'Week': interval = d3.timeWeek; break;
-    case 'Month': interval = d3.timeMonth; break;
-  }
+  const interval = getInterval(scale);
 
-  const ticks = interval.range(interval.floor(start), interval.ceil(end));
-  
+  const ticks = interval.range(interval.floor(start), end);
+
   return ticks.map((tickDate) => {
     const colStart = tickDate.getTime();
     const colEnd = interval.offset(tickDate, 1).getTime();
-    
+
     const renderStart = Math.max(start.getTime(), colStart);
     const renderEnd = Math.min(end.getTime(), colEnd);
-    
+
     const width = ((renderEnd - renderStart) / totalMs) * 100;
     const left = ((renderStart - start.getTime()) / totalMs) * 100;
 
@@ -122,77 +192,37 @@ export function calculateColumns(scale: TimeScale, start: Date, end: Date, now: 
   }).filter(col => col.width > 0);
 }
 
-export function calculateFitToData(orders: any[], scale: TimeScale): { start: Date | null, end: Date | null } {
-  if (orders.length === 0) return { start: null, end: null };
+/**
+ * Calculates the initial viewport start date from work orders.
+ * Starts at the earliest work order date, offset back by 1 timescale unit
+ * (1 day for Day, 1 week for Week, 1 month for Month),
+ * floored to the current timescale boundary.
+ */
+export function calculateInitialStart(orders: any[], scale: TimeScale): Date {
+  const interval = getInterval(scale);
+
+  if (orders.length === 0) {
+    return interval.offset(interval.floor(new Date()), -1);
+  }
 
   let minTime = Infinity;
-  let maxTime = -Infinity;
-
   for (const order of orders) {
-    const startTime = new Date(order.data.startDate).getTime();
-    const endTime = new Date(order.data.endDate).getTime();
-    if (startTime < minTime) minTime = startTime;
-    if (endTime > maxTime) maxTime = endTime;
+    const t = new Date(order.data.startDate).getTime();
+    if (t < minTime) minTime = t;
   }
 
-  let start: Date;
-  switch (scale) {
-    case 'Day':
-      start = d3.timeDay.offset(new Date(minTime), -1);
-      break;
-    case 'Week':
-      start = d3.timeWeek.offset(new Date(minTime), -1);
-      break;
-    case 'Month':
-      start = d3.timeMonth.offset(new Date(minTime), -1);
-      break;
-  }
-
-  const minDurationMs = 30 * 24 * 60 * 60 * 1000;
-  const durationMs = Math.max(maxTime - start.getTime() + (7 * 24 * 60 * 60 * 1000), minDurationMs);
-  
-  return {
-    start,
-    end: new Date(start.getTime() + durationMs)
-  };
+  const floored = interval.floor(new Date(minTime));
+  return interval.offset(floored, -1);
 }
 
 export function calculateViewportRange(date: Date, scale: TimeScale): { start: Date, end: Date } {
-  let start: Date;
-  let end: Date;
+  const interval = getInterval(scale);
+  const columnsPerScreen = getColumnsPerScreen();
+  const totalColumns = columnsPerScreen * 3;
 
-  switch (scale) {
-    case 'Day':
-      start = d3.timeDay.offset(date, -10);
-      end = d3.timeDay.offset(date, 10);
-      break;
-    case 'Week':
-      start = d3.timeWeek.offset(date, -5);
-      end = d3.timeWeek.offset(date, 5);
-      break;
-    case 'Month':
-      start = d3.timeMonth.offset(date, -6);
-      end = d3.timeMonth.offset(date, 6);
-      break;
-  }
+  const halfColumns = Math.floor(totalColumns / 2);
+  const start = interval.offset(interval.floor(date), -halfColumns);
+  const end = interval.offset(start, totalColumns);
 
-  let flooredStart: Date;
-  let ceiledEnd: Date;
-  
-  switch (scale) {
-    case 'Day':
-      flooredStart = d3.timeDay.floor(start);
-      ceiledEnd = d3.timeDay.ceil(end);
-      break;
-    case 'Week':
-      flooredStart = d3.timeWeek.floor(start);
-      ceiledEnd = d3.timeWeek.ceil(end);
-      break;
-    case 'Month':
-      flooredStart = d3.timeMonth.floor(start);
-      ceiledEnd = d3.timeMonth.ceil(end);
-      break;
-  }
-
-  return { start: flooredStart, end: ceiledEnd };
+  return { start, end };
 }

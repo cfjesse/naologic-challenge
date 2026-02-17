@@ -22,6 +22,7 @@ import {
   WorkCenterDocument,
 } from '../../models/work-order.model';
 import { WorkOrderStore } from '../../store/work-order.store';
+import { DateTime } from 'luxon';
 
 /* ── Exported event interfaces ── */
 export interface PanelSaveEvent {
@@ -100,10 +101,14 @@ export class WorkOrderPanelComponent implements OnInit {
     const endVal = group.get('endDate')?.value as NgbDateStruct | null;
     if (!startVal || !endVal) return null;
 
-    const startMs = new Date(startVal.year, startVal.month - 1, startVal.day).getTime();
-    const endMs = new Date(endVal.year, endVal.month - 1, endVal.day).getTime();
+    const startMs = DateTime.fromObject({ year: startVal.year, month: startVal.month, day: startVal.day }).toMillis();
+    const endMs = DateTime.fromObject({ year: endVal.year, month: endVal.month, day: endVal.day }).toMillis();
+    
+    const d1 = DateTime.fromMillis(startMs);
+    const d2 = DateTime.fromMillis(endMs);
+    const diff = d2.diff(d1).days;
 
-    return endMs > startMs ? null : { dateRange: true };
+    return diff >= 7 && endMs > startMs ? null : { dateRange: true };
   }
 
   private resetForm(): void {
