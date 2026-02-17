@@ -16,6 +16,7 @@ interface WorkOrderState {
 }
 
 const STORAGE_KEY = 'naologic_work_orders_v4';
+const WC_STORAGE_KEY = 'naologic_work_centers_v4';
 
 const initialState: WorkOrderState = {
   workOrders: [],
@@ -51,18 +52,37 @@ export const WorkOrderStore = signalStore(
         
         if (dataSource === 'server') {
           patchState(store, { isLoading: true });
+          
+          // Fetch Orders
           api.getWorkOrders().pipe(
             tap(() => patchState(store, { isLoading: false }))
           ).subscribe(orders => {
             patchState(store, { workOrders: orders });
           });
+
+          // Fetch Centers
+          api.getWorkCenters().subscribe(centers => {
+            patchState(store, { workCenters: centers });
+          });
         } else {
-          const stored = localStorage.getItem(STORAGE_KEY);
-          if (stored) {
+          // Load Orders from LS
+          const storedOrders = localStorage.getItem(STORAGE_KEY);
+          if (storedOrders) {
             try {
-              const parsed = JSON.parse(stored);
+              const parsed = JSON.parse(storedOrders);
               if (Array.isArray(parsed)) {
                 patchState(store, { workOrders: parsed });
+              }
+            } catch {}
+          }
+
+          // Load Centers from LS
+          const storedWC = localStorage.getItem(WC_STORAGE_KEY);
+          if (storedWC) {
+            try {
+              const parsed = JSON.parse(storedWC);
+              if (Array.isArray(parsed)) {
+                patchState(store, { workCenters: parsed });
               }
             } catch {}
           }
@@ -109,6 +129,17 @@ export const WorkOrderStore = signalStore(
           api.deleteWorkOrder(docId).subscribe();
         }
       },
+      updateWorkCenter(docId: string, name: string): void {
+        patchState(store, (state) => ({
+          workCenters: state.workCenters.map((wc) =>
+            wc.docId === docId ? { ...wc, data: { ...wc.data, name } } : wc
+          ),
+        }));
+
+        if (store.dataSource() === 'server') {
+          api.updateWorkCenter(docId, { name }).subscribe();
+        }
+      },
       checkOverlap(
         workCenterId: string,
         startDate: string,
@@ -139,18 +170,35 @@ export const WorkOrderStore = signalStore(
   }),
   withHooks({
     onInit(store) {
-      store.setWorkCenters([
-        { docId: 'wc-1', docType: 'workCenter', data: { name: 'Extrusion Line A' } },
-        { docId: 'wc-2', docType: 'workCenter', data: { name: 'CNC Machine 1' } },
-        { docId: 'wc-3', docType: 'workCenter', data: { name: 'Assembly Station' } },
-        { docId: 'wc-4', docType: 'workCenter', data: { name: 'Quality Control' } },
-        { docId: 'wc-5', docType: 'workCenter', data: { name: 'Packaging Line' } },
-      ]);
-
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
+      // Initialize Centers
+      const storedWC = localStorage.getItem(WC_STORAGE_KEY);
+      if (storedWC) {
         try {
-          const parsed = JSON.parse(stored);
+          const parsed = JSON.parse(storedWC) as WorkCenterDocument[];
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            // Migration/Patch: Ensure core centers from storage have isDefault: true
+            const patched = parsed.map(wc => {
+              if (wc.docId.startsWith('wc-')) {
+                return { ...wc, data: { ...wc.data, isDefault: true } };
+              }
+              return wc;
+            });
+            store.setWorkCenters(patched);
+          } else {
+            store.setWorkCenters(getDefaultWorkCenters());
+          }
+        } catch (e) {
+          store.setWorkCenters(getDefaultWorkCenters());
+        }
+      } else {
+        store.setWorkCenters(getDefaultWorkCenters());
+      }
+
+      // Initialize Orders
+      const storedOrders = localStorage.getItem(STORAGE_KEY);
+      if (storedOrders) {
+        try {
+          const parsed = JSON.parse(storedOrders);
           if (Array.isArray(parsed) && parsed.length > 0) {
             store.setWorkOrders(parsed);
           } else {
@@ -165,10 +213,12 @@ export const WorkOrderStore = signalStore(
 
       effect(() => {
         const orders = store.workOrders();
+        const centers = store.workCenters();
         const source = store.dataSource();
         
         if (source === 'local') {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
+          localStorage.setItem(WC_STORAGE_KEY, JSON.stringify(centers));
         }
       });
     },
@@ -247,4 +297,14 @@ function getDefaultWorkOrders(): WorkOrderDocument[] {
   }
   
   return orders;
+}
+
+function getDefaultWorkCenters(): WorkCenterDocument[] {
+  return [
+    { docId: 'wc-1', docType: 'workCenter', data: { name: 'Extrusion Line A', isDefault: true } },
+    { docId: 'wc-2', docType: 'workCenter', data: { name: 'CNC Machine 1', isDefault: true } },
+    { docId: 'wc-3', docType: 'workCenter', data: { name: 'Assembly Station', isDefault: true } },
+    { docId: 'wc-4', docType: 'workCenter', data: { name: 'Quality Control', isDefault: true } },
+    { docId: 'wc-5', docType: 'workCenter', data: { name: 'Packaging Line', isDefault: true } },
+  ];
 }

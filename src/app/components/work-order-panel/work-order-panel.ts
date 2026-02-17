@@ -104,11 +104,13 @@ export class WorkOrderPanelComponent implements OnInit {
     const startMs = DateTime.fromObject({ year: startVal.year, month: startVal.month, day: startVal.day }).toMillis();
     const endMs = DateTime.fromObject({ year: endVal.year, month: endVal.month, day: endVal.day }).toMillis();
     
+    if (endMs <= startMs) return { dateOrder: true };
+    
     const d1 = DateTime.fromMillis(startMs);
     const d2 = DateTime.fromMillis(endMs);
-    const diff = d2.diff(d1).days;
+    const diff = d2.diff(d1, 'days').days;
 
-    return diff >= 7 && endMs > startMs ? null : { dateRange: true };
+    return diff >= 7 ? null : { dateRangeMinimum: true };
   }
 
   private resetForm(): void {

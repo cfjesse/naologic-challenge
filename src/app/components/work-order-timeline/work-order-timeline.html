@@ -51,11 +51,13 @@
   <div class="gantt-wrapper" #ganttWrapper (scroll)="onGanttScroll()">
     <!-- Left panel: Work Centers -->
     <div class="left-panel">
-      <div class="left-header">Work Center</div>
+      <div class="left-header">
+        <span>Work Center</span>
+      </div>
       @for (wc of store.workCenters(); track wc.docId) {
-        <div class="left-row" [class.even]="$even">
-          {{ wc.data.name }}
-        </div>
+      <div class="left-row" [class.even]="$even">
+        <span class="wc-name">{{ wc.data.name }}</span>
+      </div>
       }
     </div>
 
@@ -64,26 +66,25 @@
   </div>
 
   @if (activeOrders.length > 0) {
-    <app-active-orders-card [activeOrders]="activeOrders"
-      [periodLabel]="cursorPeriodLabel">
-    </app-active-orders-card>
+  <app-active-orders-card [activeOrders]="activeOrders" [periodLabel]="cursorPeriodLabel">
+  </app-active-orders-card>
   }
 </div>
 
 <!-- Tooltip -->
-@if (tooltip.visible) {
-  <div class="tooltip-popup" [style.top.px]="tooltip.y - 40" [style.left.px]="tooltip.x">
-    {{ tooltip.text }}
-  </div>
+@if (tooltip.visible && auth.isAdmin()) {
+<div class="tooltip-popup" [style.top.px]="tooltip.y - 40" [style.left.px]="tooltip.x">
+  {{ tooltip.text }}
+</div>
 }
 
 <!-- Ellipsis Dropdown Menu -->
 @if (activeMenu) {
-  <div class="ellipsis-dropdown" [style.top.px]="activeMenu.y" [style.left.px]="activeMenu.x"
-    (mousedown)="$event.stopPropagation()">
-    <button class="dropdown-item" (click)="onMenuEdit()">Edit</button>
-    <button class="dropdown-item dropdown-item-delete" (click)="onMenuDelete()">Delete</button>
-  </div>
+<div class="ellipsis-dropdown" [style.top.px]="activeMenu.y" [style.left.px]="activeMenu.x"
+  (mousedown)="$event.stopPropagation()">
+  <button class="dropdown-item" (click)="onMenuEdit()">Edit</button>
+  <button class="dropdown-item dropdown-item-delete" (click)="onMenuDelete()">Delete</button>
+</div>
 }
 
 <!-- Confirm Delete Dialog -->

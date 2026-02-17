@@ -1,4 +1,5 @@
 
+// Naologic ERP - Work Order Timeline Component
 import {
   Component,
   OnInit,
@@ -10,6 +11,7 @@ import {
   HostListener,
   inject,
   ViewEncapsulation,
+  effect,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -22,12 +24,7 @@ import { takeUntil } from 'rxjs/operators';
 import * as d3 from 'd3';
 import { DateTime } from 'luxon';
 
-import {
-  WorkOrderDocument,
-  WorkOrderStatus,
-  TimeScale,
-  WorkCenterDocument,
-} from '../../models/work-order.model';
+import * as Models from '../../models/work-order.model';
 import { WorkOrderStore } from '../../store/work-order.store';
 import {
   WorkOrderPanelComponent,
@@ -56,7 +53,7 @@ import {
 
 /* ── Local interfaces for D3 data binding ── */
 interface BarDatum {
-  order: WorkOrderDocument;
+  order: Models.WorkOrderDocument;
   x: number;
   y: number;
   w: number;
@@ -78,6 +75,7 @@ interface BarDatum {
   encapsulation: ViewEncapsulation.None,
 })
 export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewInit {
+  private _refreshTrigger = false;
   private readonly cdr = inject(ChangeDetectorRef);
   protected readonly store = inject(WorkOrderStore);
   private readonly offcanvasService = inject(NgbOffcanvas);
@@ -93,18 +91,18 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
   @ViewChild('ganttWrapper', { static: false }) ganttWrapperRef!: ElementRef<HTMLDivElement>;
 
   /* ── Timescale ── */
-  timeScale: TimeScale = 'Day';
-  readonly timeScaleOptions: TimeScale[] = ['Day', 'Week', 'Month'];
+  timeScale: Models.TimeScale = 'Day';
+  readonly timeScaleOptions: Models.TimeScale[] = ['Day', 'Week', 'Month'];
 
   /* ── Status Filter ── */
-  readonly statusFilterOptions: (WorkOrderStatus | 'all')[] = ['all', 'open', 'in-progress', 'complete', 'blocked'];
+  readonly statusFilterOptions: (Models.WorkOrderStatus | 'all')[] = ['all', 'open', 'in-progress', 'complete', 'blocked'];
 
   /* ── Date viewport ── */
   viewportStart = new Date();
   viewportEnd = new Date();
   cursorDate = new Date(); // To track the draggable cursor position
 
-  activeOrders: WorkOrderDocument[] = []; // Orders visible at cursor position
+  activeOrders: Models.WorkOrderDocument[] = []; // Orders visible at cursor position
   cursorPeriodLabel = ''; // e.g. "October 2025" or "Week 42"
 
   /* ── Layout constants ── */
@@ -140,7 +138,7 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
   /* ── UI state ── */
   activeMenu: ActiveMenu | null = null;
   confirmVisible = false;
-  confirmOrderToDelete: WorkOrderDocument | null = null;
+  confirmOrderToDelete: Models.WorkOrderDocument | null = null;
   tooltip: TooltipState = { visible: false, text: '', x: 0, y: 0 };
 
   /* ══════════════════════════════════════════════
@@ -161,6 +159,24 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
 
   ngAfterViewInit(): void {
     this.initD3();
+    
+    // REDRAW ON STORE CHANGES
+    effect(() => {
+      // Signals to watch
+      const orders = this.store.workOrders();
+      const centers = this.store.workCenters();
+      const filter = this.store.statusFilter();
+      
+      // Force a UI update after a microtask to ensure Angular 
+      // has updated the sidebar DOM (left-panel)
+      setTimeout(() => {
+        if (this.svg) {
+          this.renderChart();
+          this.cdr.detectChanges();
+        }
+      }, 0);
+    });
+
     this.renderChart();
   }
 
@@ -268,7 +284,7 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
      ══════════════════════════════════════════════ */
 
   private renderGrid(
-    workCenters: WorkCenterDocument[],
+    workCenters: Models.WorkCenterDocument[],
     ticks: Date[],
     now: Date
   ): void {
@@ -285,9 +301,15 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
     const rows = this.gridGroup.selectAll<SVGRectElement, (typeof rowData)[0]>('rect.row-bg')
       .data(rowData, d => d.workCenterId);
 
-    rows.join('rect')
-      .attr('class', d => `row-bg${d.isEven ? ' even' : ''}`)
-      .attr('id', d => `row-${d.workCenterId}`) // Add ID for hover selection
+    rows.join(
+      enter => enter.append('rect')
+        .attr('class', d => `row-bg${d.isEven ? ' even' : ''}`)
+        .attr('opacity', 0)
+        .call(enter => enter.transition().duration(400).attr('opacity', 1)),
+      update => update.attr('class', d => `row-bg${d.isEven ? ' even' : ''}`),
+      exit => exit.transition().duration(200).attr('opacity', 0).remove()
+    )
+      .attr('id', d => `row-${d.workCenterId}`)
       .attr('x', 0)
       .attr('y', d => d.y)
       .attr('width', this.svgWidth)
@@ -543,8 +565,8 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
      ══════════════════════════════════════════════ */
 
   private renderBars(
-    workCenters: WorkCenterDocument[],
-    orders: WorkOrderDocument[]
+    workCenters: Models.WorkCenterDocument[],
+    orders: Models.WorkOrderDocument[]
   ): void {
     const wcIndexMap = new Map<string, number>();
     workCenters.forEach((wc, i) => wcIndexMap.set(wc.docId, i));
@@ -565,7 +587,7 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
     const self = this;
 
     // Helper method for updating order dates
-    const updateOrderDates = (order: WorkOrderDocument, newStart: Date, newEnd: Date) => {
+    const updateOrderDates = (order: Models.WorkOrderDocument, newStart: Date, newEnd: Date) => {
       const newStartIso = toIso(roundToDay(newStart));
       const newEndIso = toIso(roundToDay(newEnd));
       const overlap = self.store.checkOverlap(
@@ -907,12 +929,12 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
      USER ACTIONS — DROPDOWNS, NAVIGATION
      ══════════════════════════════════════════════ */
 
-  onStatusFilterChange(status: WorkOrderStatus | 'all'): void {
+  onStatusFilterChange(status: Models.WorkOrderStatus | 'all'): void {
     this.store.setStatusFilter(status);
     this.renderChart();
   }
 
-  onTimeScaleChange(scale: TimeScale): void {
+  onTimeScaleChange(scale: Models.TimeScale): void {
     this.timeScale = scale;
     this.api.updateSettings({ timeScale: scale }).pipe(takeUntil(this.destroy$)).subscribe();
     this.initViewport();
@@ -981,7 +1003,7 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
      ══════════════════════════════════════════════ */
 
   /* ── Status Helpers ── */
-  getStatusLabel(status: WorkOrderStatus): string {
+  getStatusLabel(status: Models.WorkOrderStatus): string {
     return getStatusLabel(status);
   }
 
@@ -1020,7 +1042,7 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
      ELLIPSIS MENU
      ══════════════════════════════════════════════ */
 
-  onEllipsisClick(event: MouseEvent, order: WorkOrderDocument): void {
+  onEllipsisClick(event: MouseEvent, order: Models.WorkOrderDocument): void {
     event.preventDefault();
     event.stopPropagation();
 
@@ -1041,7 +1063,7 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
   onMenuEdit(): void {
     if (!this.activeMenu) return;
     const order = this.store.filteredWorkOrders().find(
-      (o: WorkOrderDocument) => o.docId === this.activeMenu!.orderId
+      (o: Models.WorkOrderDocument) => o.docId === this.activeMenu!.orderId
     );
     this.activeMenu = null;
     this.cdr.detectChanges();
@@ -1051,7 +1073,7 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
   onMenuDelete(): void {
     if (!this.activeMenu) return;
     const order = this.store.filteredWorkOrders().find(
-      (o: WorkOrderDocument) => o.docId === this.activeMenu!.orderId
+      (o: Models.WorkOrderDocument) => o.docId === this.activeMenu!.orderId
     );
     this.activeMenu = null;
     if (order) {
@@ -1071,7 +1093,7 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
       this.confirmOrderToDelete = null;
     }
     this.confirmVisible = false;
-    this.renderChart();
+    this.cdr.detectChanges();
   }
 
   onCancelDelete(): void {
@@ -1102,7 +1124,7 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
     );
   }
 
-  private openEditPanel(order: WorkOrderDocument): void {
+  private openEditPanel(order: Models.WorkOrderDocument): void {
     const offcanvasRef = this.offcanvasService.open(WorkOrderPanelComponent, {
       position: 'end',
       panelClass: 'work-order-offcanvas',

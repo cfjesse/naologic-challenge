@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { TimeScale, WorkOrderDocument } from '../models/work-order.model';
+import { TimeScale, WorkOrderDocument, WorkCenterDocument } from '../models/work-order.model';
 
 export interface AppSettings {
   timeScale: TimeScale;
@@ -53,5 +53,19 @@ export class ApiService {
 
   deleteWorkOrder(docId: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/orders/${docId}`);
+  }
+
+  // Work Centers
+  getWorkCenters(): Observable<WorkCenterDocument[]> {
+    return this.http.get<WorkCenterDocument[]>(`${this.baseUrl}/work-centers`).pipe(
+      catchError(err => {
+        console.error('API: Failed to fetch work centers', err);
+        return of([]);
+      })
+    );
+  }
+
+  updateWorkCenter(docId: string, data: Partial<WorkCenterDocument['data']>): Observable<void> {
+    return this.http.put<void>(`${this.baseUrl}/work-centers/${docId}`, data);
   }
 }

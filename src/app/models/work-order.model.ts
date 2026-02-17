@@ -7,6 +7,7 @@ export interface WorkCenterDocument {
   docType: 'workCenter';
   data: {
     name: string;
+    isDefault?: boolean;
   };
 }
 
