@@ -1,59 +1,54 @@
-# Erp
+# Naologic ERP Work Order Timeline
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.1.2.
+An interactive timeline component for visualizing and managing work orders across multiple work centers. Built with **Angular 21** (standalone headers), **D3.js** for timeline logic, **@ng-select** for dropdowns, and **@ng-bootstrap** for date pickers.
 
-## Development server
+## Features
 
-To start a local development server, run:
+- **Timeline Grid**: Zoomable view (Day, Week, Month) with dynamic column generation.
+- **Interactive Bars**: Drag to move, resize handles to adjust duration.
+- **CRUD Operations**:
+  - **Create**: Click on an empty timeline area to open the slide-out panel.
+  - **Read**: View orders across work centers with status visualization.
+  - **Update**: Edit details via the 3-dot menu or resize/move bars directly.
+  - **Delete**: Remove orders via the 3-dot menu (with confirmation dialog).
+- **Validation**: Prevents work order overlaps on the same work center.
+- **Data Persistence**: Saves changes to `localStorage` (bonus feature).
+- **Responsive**: Adapts to screen size, optimized for desktop.
 
-```bash
-ng serve
-```
+## Setup
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+1. **Install dependencies**:
+   ```bash
+   npm install
+   ```
 
-## Code scaffolding
+2. **Run dev server**:
+   ```bash
+   ng serve
+   ```
+   Navigate to `http://localhost:4200`.
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+## Architecture & Approach
 
-```bash
-ng generate component component-name
-```
+### Component Structure
+- `WorkOrderTimelineComponent`: The main orchestrator. Handles D3 timescale logic, viewport calculations, and drag-and-drop events.
+- `WorkOrderPanelComponent`: A slide-out panel for Create/Edit forms. Uses **Reactive Forms** for validation (e.g., end date > start date).
+- `WorkOrderService`: A centralized signal-based store for data management and business logic (like overlap detection).
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+### Key Decisions
+- **Signals**: Used extensively for state management to ensure fine-grained reactivity and OnPush performance.
+- **D3.js**: Chosen for robust time scale calculations (`d3.timeDay`, `d3.timeWeek`, etc.) rather than writing custom date math.
+- **View Encapsulation**: Kept `Emulated` but used specific `::ng-deep` overrides for third-party libraries (`ng-select`) to match the Naologic design system.
+- **UUIDs**: All data uses UUIDs for `docId` to ensure uniqueness, with a fallback generator if `crypto.randomUUID` is unavailable.
 
-```bash
-ng generate --help
-```
+## Libraries
 
-## Building
+- **Angular 21**: Core framework.
+- **D3.js**: Timeline math and scales.
+- **@ng-select/ng-select**: Custom dropdowns matching the design.
+- **@ng-bootstrap/ng-bootstrap**: Datepicker integration.
+- **RxJS**: Reactive event handling.
 
-To build the project run:
+## License
 
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Private / Technical Assessment

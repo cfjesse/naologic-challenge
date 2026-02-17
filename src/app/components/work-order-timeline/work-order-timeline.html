@@ -1,0 +1,124 @@
+<div class="timeline-container" [class.panel-open]="panelVisible()">
+  <!-- Header -->
+  <header class="timeline-header">
+    <span class="brand">NAO<span class="brand-accent">LOGIC</span></span>
+    <h1 class="page-title">Work Orders</h1>
+    <div class="timescale-control">
+      <!-- ng-select for timescale -->
+      <ng-select class="timescale-select" [items]="timeScaleOptions" [clearable]="false" [searchable]="false"
+        [ngModel]="timeScale()" (ngModelChange)="onTimeScaleChange($event)" [title]="'Select timescale'">
+
+        <ng-template ng-label-tmp let-item="item">
+          <span class="timescale-value">{{ item }}</span>
+        </ng-template>
+
+        <ng-template ng-option-tmp let-item="item">
+          <span class="timescale-option">{{ item }}</span>
+        </ng-template>
+      </ng-select>
+    </div>
+  </header>
+
+  <!-- Gantt Grid -->
+  <div class="gantt-wrapper">
+    <!-- Left panel: Work Centers -->
+    <div class="left-panel">
+      <div class="left-header">Work Center</div>
+      @for (wc of workCenters(); track wc.docId) {
+      <div class="left-row" [class.even]="$even">
+        {{ wc.data.name }}
+      </div>
+      }
+    </div>
+
+    <!-- Right panel: Timeline area -->
+    <div class="right-panel" #timelineArea>
+      <!-- Column headers -->
+      <div class="column-headers"
+        [style.grid-template-columns]="'repeat(' + columns().length + ', minmax(' + columnMinWidth() + 'px, 1fr))'">
+        @for (col of columns(); track col.label) {
+        <div class="col-header" [class.current-period]="col.isCurrentPeriod">
+          <span class="col-label">{{ col.label }}</span>
+          @if (col.isCurrentPeriod) {
+          <span class="current-pill">{{ getCurrentPeriodLabel() }}</span>
+          }
+        </div>
+        }
+      </div>
+
+      <!-- Timeline rows -->
+      @for (wc of workCenters(); track wc.docId) {
+      <div class="timeline-row" [class.even]="$even"
+        [style.grid-template-columns]="'repeat(' + columns().length + ', minmax(' + columnMinWidth() + 'px, 1fr))'"
+        (mousedown)="onTimelineMouseDown($event, wc.docId)" (mouseup)="onTimelineMouseUp($event, wc.docId)"
+        (mousemove)="onTimelineMouseMove($event)" (mouseleave)="onTimelineMouseLeave()">
+        <!-- Grid columns -->
+        @for (col of columns(); track col.label) {
+        <div class="grid-cell" [class.current-period]="col.isCurrentPeriod"></div>
+        }
+
+        <!-- Work order bars -->
+        @for (order of getOrdersForWorkCenter(wc.docId); track order.docId) {
+        <div class="bar {{ getBarClass(order.data.status) }}" [style.left.%]="getBarLeft(order)"
+          [style.width.%]="getBarWidth(order)" (mousedown)="onBarMouseDown($event, order)"
+          [title]="order.data.name + ' (' + order.data.startDate + ' – ' + order.data.endDate + ')'">
+          <!-- Left resize handle -->
+          <div class="resize-handle resize-handle-left" (mousedown)="onResizeMouseDown($event, order, 'start')"></div>
+
+          <span class="bar-title">{{ order.data.name }}</span>
+          <span class="bar-status {{ getStatusClass(order.data.status) }}">
+            {{ getStatusLabel(order.data.status) }}
+          </span>
+
+          <!-- 3-dot ellipsis button -->
+          <button class="bar-ellipsis" (click)="onEllipsisClick($event, order)" type="button">
+            ⋯
+          </button>
+
+          <!-- Right resize handle -->
+          <div class="resize-handle resize-handle-right" (mousedown)="onResizeMouseDown($event, order, 'end')"></div>
+        </div>
+
+        <!-- Ellipsis dropdown menu -->
+        @if (activeMenu()?.orderId === order.docId) {
+        <div class="ellipsis-dropdown" [style.left.%]="getBarLeft(order) + getBarWidth(order)" [style.top.px]="10">
+          <button class="dropdown-item" (click)="onMenuEdit(order)">Edit</button>
+          <button class="dropdown-item dropdown-item-delete" (click)="onMenuDelete(order)">Delete</button>
+        </div>
+        }
+        }
+      </div>
+      }
+
+      <!-- Cursor / Slider line -->
+      @if (cursorPositionPercent() >= 0 && cursorPositionPercent() <= 100) { <div class="cursor-line"
+        [style.left.%]="cursorPositionPercent()" (mousedown)="onCursorMouseDown($event)">
+        <div class="cursor-handle">
+          <svg width="10" height="14" viewBox="0 0 10 14">
+            <path d="M0 0 L10 0 L10 10 L5 14 L0 10 Z" fill="#5046e5" />
+          </svg>
+        </div>
+    </div>
+    }
+  </div>
+</div>
+
+<!-- Tooltip -->
+@if (tooltip().visible) {
+<div class="tooltip-popup" [style.top.px]="tooltip().y - 40" [style.left.px]="tooltip().x">
+  {{ tooltip().text }}
+</div>
+}
+</div>
+
+<!-- Slide-out panel -->
+<app-work-order-panel [visible]="panelVisible()" [mode]="panelMode()" [workOrder]="panelWorkOrder()"
+  [workCenterId]="panelWorkCenterId()" [startDate]="panelStartDate()" [workCenters]="workCenters()"
+  [overlapError]="panelOverlapError()" (save)="onPanelSave($event)" (cancel)="onPanelCancel()">
+</app-work-order-panel>
+
+<!-- Confirm Delete Dialog -->
+<app-confirm-dialog [visible]="confirmVisible()" [title]="'Delete Work Order'"
+  [message]="'Are you sure you want to delete this work order? This action cannot be undone.'" [confirmLabel]="'Delete'"
+  [cancelLabel]="'Cancel'" [destructive]="true" (confirm)="onConfirmDelete()" (cancel)="onCancelDelete()">
+</app-confirm-dialog>

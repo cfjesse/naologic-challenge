@@ -1,0 +1,16 @@
+@if (visible) {
+<div class="dialog-overlay" (click)="onOverlayClick($event)">
+  <div class="dialog-card" role="alertdialog" aria-modal="true">
+    <h3 class="dialog-title">{{ title }}</h3>
+    <p class="dialog-message">{{ message }}</p>
+    <div class="dialog-actions">
+      <button type="button" class="btn-dialog-cancel" (click)="onCancel()">
+        {{ cancelLabel }}
+      </button>
+      <button type="button" class="btn-dialog-confirm" [class.destructive]="destructive" (click)="onConfirm()">
+        {{ confirmLabel }}
+      </button>
+    </div>
+  </div>
+</div>
+}
