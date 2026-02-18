@@ -63,6 +63,27 @@
 
     <!-- D3 SVG Chart -->
     <svg #ganttSvg class="gantt-svg"></svg>
+
+    <!-- Drag Preview (Ghost) -->
+    @if (ghostBar.visible && auth.isAdmin()) {
+    <div [class]="ghostBar.class" [style.transform]="'translate(' + ghostBar.x + 'px, ' + ghostBar.y + 'px)'"
+      [style.width.px]="ghostBar.w" [style.height.px]="ghostBar.h">
+
+      <!-- Ghost Grip (Left) -->
+      <div class="ghost-grip ghost-grip-left"></div>
+
+      <!-- Ghost Name Label -->
+      <div class="ghost-label ghost-name">{{ ghostBar.name }}</div>
+
+      <!-- Ghost Status Pill -->
+      <div class="ghost-status-pill">
+        {{ getStatusLabel(ghostBar.status) }}
+      </div>
+
+      <!-- Ghost Grip (Right) -->
+      <div class="ghost-grip ghost-grip-right"></div>
+    </div>
+    }
   </div>
 
   @if (activeOrders.length > 0) {
@@ -91,4 +112,10 @@
 <app-confirm-dialog [visible]="confirmVisible" [title]="'Delete Work Order'"
   [message]="'Are you sure you want to delete this work order? This action cannot be undone.'" [confirmLabel]="'Delete'"
   [cancelLabel]="'Cancel'" [destructive]="true" (confirm)="onConfirmDelete()" (cancel)="onCancelDelete()">
+</app-confirm-dialog>
+
+<!-- Confirm Update Dialog -->
+<app-confirm-dialog [visible]="confirmUpdateVisible" [title]="'Update Work Order Dates'"
+  [message]="confirmUpdateMessage" [confirmLabel]="'Update'" [cancelLabel]="'Cancel'" [destructive]="false"
+  (confirm)="onConfirmUpdate()" (cancel)="onCancelUpdate()">
 </app-confirm-dialog>

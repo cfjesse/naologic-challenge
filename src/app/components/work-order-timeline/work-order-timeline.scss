@@ -429,9 +429,38 @@ rect.status-pill-bg {
 rect.resize-handle {
   fill: transparent;
   cursor: ew-resize;
+  pointer-events: all;
+  z-index: 10;
 
   &:hover {
+    cursor: ew-resize;
+  }
+}
+
+.grip-group {
+  pointer-events: none;
+  
+  rect.grip-bg {
+    fill: rgba(0, 0, 0, 0.05);
+    stroke: rgba(0, 0, 0, 0.1);
+    stroke-width: 1px;
+    transition: all 0.2s ease;
+  }
+
+  line.grip-line {
+    stroke: rgba(0, 0, 0, 0.2);
+    stroke-width: 1.5px;
+    stroke-linecap: round;
+  }
+}
+
+g.bar-group:hover {
+  .grip-group rect.grip-bg {
     fill: rgba(80, 70, 229, 0.1);
+    stroke: rgba(80, 70, 229, 0.2);
+  }
+  .grip-group line.grip-line {
+    stroke: #5046e5;
   }
 }
 
@@ -612,3 +641,73 @@ text.bar-ellipsis {
   from { opacity: 0; transform: translateX(-12px); }
   to { opacity: 1; transform: translateX(0); }
 }
+
+/* ── Ghost Bar Preview (Matches SVG Style) ── */
+.ghost-bar {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1000;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  opacity: 0.6;
+  will-change: transform, width;
+  font-family: 'Outfit', sans-serif;
+  overflow: hidden;
+
+  &.preview-open {
+    background: linear-gradient(90deg, #6366f1 0%, #818cf8 100%);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  &.preview-in-progress {
+    background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  &.preview-complete {
+    background: linear-gradient(90deg, #22c55e 0%, #4ade80 100%);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  &.preview-blocked {
+    background: linear-gradient(90deg, #ef4444 0%, #f87171 100%);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .ghost-label {
+    color: white;
+    font-size: 13.5px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-right: 12px;
+  }
+
+  .ghost-status-pill {
+    margin-left: auto;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(4px);
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 100px;
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+  }
+
+  /* Grips to match SVG */
+  .ghost-grip {
+    position: absolute;
+    width: 2px;
+    height: 12px;
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 1px;
+
+    &.ghost-grip-left { left: 5px; }
+    &.ghost-grip-right { right: 5px; }
+  }
+}
+

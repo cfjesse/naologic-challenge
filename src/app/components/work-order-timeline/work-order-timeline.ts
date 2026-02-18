@@ -49,6 +49,7 @@ import {
   calculateInitialStart,
   getColumnsPerScreen,
   COLUMN_MIN_WIDTH,
+  LEFT_PANEL_WIDTH,
 } from './work-order-timeline.utils';
 
 /* ── Local interfaces for D3 data binding ── */
@@ -133,13 +134,37 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
   private mouseDownPos: { x: number; y: number } | null = null;
   private mouseDownWorkCenterId: string | null = null;
   private didDrag = false;
+  private isDragging = false;
+  private isCursorDragging = false;
+  private ghostUpdateRequested = false;
   private readonly DRAG_THRESHOLD = 5;
+  private redrawTimeout: any = null;
+  private dragOffsetX = 0;
 
   /* ── UI state ── */
   activeMenu: ActiveMenu | null = null;
   confirmVisible = false;
   confirmOrderToDelete: Models.WorkOrderDocument | null = null;
   tooltip: TooltipState = { visible: false, text: '', x: 0, y: 0 };
+  
+  /* ── Pending Update State ── */
+  confirmUpdateVisible = false;
+  pendingUpdate: {
+    order: Models.WorkOrderDocument;
+    newStartIso: string;
+    newEndIso: string;
+  } | null = null;
+  confirmUpdateMessage = '';
+
+  /* ── Drag Preview (Ghost) ── */
+  ghostBar = {
+    visible: false,
+    x: 0, y: 0, w: 0, h: 0,
+    class: '',
+    name: '',
+    status: '' as Models.WorkOrderStatus,
+    docId: '',
+  };
 
   /* ══════════════════════════════════════════════
      LIFECYCLE
@@ -153,14 +178,7 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
       this.store.workCenters();
       this.store.statusFilter();
       
-      // Force a UI update after a microtask to ensure Angular 
-      // has updated the sidebar DOM (left-panel)
-      setTimeout(() => {
-        if (this.svg) {
-          this.renderChart();
-          this.cdr.detectChanges();
-        }
-      }, 0);
+      this.requestRedraw();
     });
   }
 
@@ -189,7 +207,31 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
   @HostListener('window:resize')
   onWindowResize(): void {
     this.ensureMinimumColumns();
-    this.renderChart();
+    this.requestRedraw();
+  }
+
+  private requestRedraw(force = false): void {
+    if (this.redrawTimeout) clearTimeout(this.redrawTimeout);
+    
+    // Smooth interaction: avoid full redraw if dragging a bar
+    // BUT allow it if forced (e.g. cursor drag or high priority update)
+    if (this.isDragging && !force) return;
+
+    this.redrawTimeout = setTimeout(() => {
+      if (this.svg) {
+        this.renderChart();
+      }
+      this.redrawTimeout = null;
+    }, force ? 16 : 60); 
+  }
+
+  private requestGhostUpdate(): void {
+    if (this.ghostUpdateRequested) return;
+    this.ghostUpdateRequested = true;
+    requestAnimationFrame(() => {
+      this.cdr.detectChanges();
+      this.ghostUpdateRequested = false;
+    });
   }
 
   /* ══════════════════════════════════════════════
@@ -304,11 +346,9 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
 
     rows.join(
       enter => enter.append('rect')
-        .attr('class', d => `row-bg${d.isEven ? ' even' : ''}`)
-        .attr('opacity', 0)
-        .call(enter => enter.transition().duration(400).attr('opacity', 1)),
+        .attr('class', d => `row-bg${d.isEven ? ' even' : ''}`),
       update => update.attr('class', d => `row-bg${d.isEven ? ' even' : ''}`),
-      exit => exit.transition().duration(200).attr('opacity', 0).remove()
+      exit => exit.remove()
     )
       .attr('id', d => `row-${d.workCenterId}`)
       .attr('x', 0)
@@ -418,8 +458,9 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
     });
 
     // ── Header background strip ──
-    this.headerGroup.selectAll('rect.header-strip').remove();
-    this.headerGroup.insert('rect', ':first-child')
+    const strip = this.headerGroup.selectAll<SVGRectElement, number>('rect.header-strip')
+      .data([1]);
+    strip.join('rect')
       .attr('class', 'header-strip')
       .attr('x', 0).attr('y', 0)
       .attr('width', this.svgWidth)
@@ -451,8 +492,9 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
       .text(d => d.label);
 
     // ── Header bottom border ──
-    this.headerGroup.selectAll('line.header-border').remove();
-    this.headerGroup.append('line')
+    const border = this.headerGroup.selectAll<SVGLineElement, number>('line.header-border')
+      .data([1]);
+    border.join('line')
       .attr('class', 'header-border')
       .attr('x1', 0).attr('y1', this.HEADER_HEIGHT)
       .attr('x2', this.svgWidth).attr('y2', this.HEADER_HEIGHT);
@@ -473,15 +515,20 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
     const self = this;
 
     const drag = d3.drag<SVGGElement, any>()
+      .on('start', function(event) {
+        self.isCursorDragging = true;
+      })
       .on('drag', function (event) {
-        // Constrain x to viewport width
         let newX = event.x;
         newX = Math.max(0, Math.min(newX, self.svgWidth));
-
-        // Use invert to get date from x
+        d3.select(this).attr('transform', `translate(${newX}, 0)`);
+        
         self.cursorDate = self.xScale.invert(newX);
-        self.renderChart(); // Re-render to update highlights + line position + active orders
-        self.updateActiveOrders();
+        self.requestRedraw(true); 
+      })
+      .on('end', function() {
+        self.isCursorDragging = false;
+        self.renderChart();
       });
 
     // Cursor Group Container
@@ -492,26 +539,26 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
     const enter = cursor.enter().append('g')
       .attr('class', 'cursor-container')
       .call(drag)
-      .style('cursor', 'ew-resize');
+      .style('cursor', 'ew-resize')
+      .style('will-change', 'transform');
 
     // Line
     enter.append('line')
       .attr('class', 'cursor-line')
-      .attr('y1', 0) // From top of SVG (including header)
-      .attr('y2', this.svgHeight) // To bottom
-      .attr('stroke', '#5046e5')
-      .attr('stroke-width', 2);
+      .attr('y1', 0)
+      .attr('y2', this.svgHeight);
 
     // Handle (Circle at top)
     enter.append('circle')
       .attr('class', 'cursor-handle')
       .attr('r', 5)
-      .attr('cy', this.HEADER_HEIGHT / 2) // Center in header
-      .attr('fill', '#5046e5');
+      .attr('cy', this.HEADER_HEIGHT / 2);
 
-    // Merge update
+    // Merge update - skip transform if currently dragging (handled by .on('drag'))
     const merged = enter.merge(cursor);
-    merged.attr('transform', `translate(${x}, 0)`);
+    if (!this.isCursorDragging) {
+      merged.attr('transform', `translate(${x}, 0)`);
+    }
 
     // Update dimensions if height changed
     merged.select('line')
@@ -587,21 +634,39 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
 
     const self = this;
 
-    // Helper method for updating order dates
+    // Helper method for updating order dates - NOW SHOWS MODAL
     const updateOrderDates = (order: Models.WorkOrderDocument, newStart: Date, newEnd: Date) => {
       const newStartIso = toIso(roundToDay(newStart));
       const newEndIso = toIso(roundToDay(newEnd));
+      
       const overlap = self.store.checkOverlap(
         order.data.workCenterId, newStartIso, newEndIso, order.docId
       );
-      if (!overlap) {
-        self.store.updateWorkOrder(order.docId, {
-          ...order.data,
-          startDate: newStartIso,
-          endDate: newEndIso,
-        });
-        self.renderChart();
+
+      if (overlap) {
+        self.ghostBar.visible = false;
+        self.renderChart(); // Revert visual drag
+        return;
       }
+
+      // If no change, just re-render to snap
+      if (newStartIso === order.data.startDate && newEndIso === order.data.endDate) {
+        self.ghostBar.visible = false;
+        self.renderChart();
+        return;
+      }
+
+      // Snap ghost bar to the actual proposed dates for precision
+      const finalStartDate = roundToDay(newStart);
+      const finalEndDate = roundToDay(newEnd);
+      self.ghostBar.x = self.xScale(finalStartDate) + LEFT_PANEL_WIDTH;
+      self.ghostBar.w = self.xScale(finalEndDate) - self.xScale(finalStartDate);
+      self.ghostBar.visible = true; // Ensure it stays visible
+
+      self.pendingUpdate = { order, newStartIso, newEndIso };
+      self.confirmUpdateMessage = `Update dates to: ${newStartIso} — ${newEndIso}?`;
+      self.confirmUpdateVisible = true;
+      self.cdr.detectChanges();
     };
 
     // ── Bar drag behavior (move) ──
@@ -611,22 +676,26 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
         event.sourceEvent.stopPropagation();
         event.sourceEvent.preventDefault();
         self.didDrag = true;
+        self.isDragging = true;
+        self.dragOffsetX = event.x - d.x; 
+
         self._dragOrigStart = new Date(d.order.data.startDate);
         self._dragOrigEnd = new Date(d.order.data.endDate);
         d3.select(this).classed('dragging', true);
       })
       .on('drag', function (event, d) {
         if (!self._dragOrigStart || !self._dragOrigEnd) return;
-        const dx = event.dx;
-        // Visual update
-        d.x += dx;
+        // Direct SVG update for whole-bar move is smoother
+        d.x = event.x - self.dragOffsetX;
         d3.select(this).attr('transform', `translate(${d.x}, ${d.y})`);
       })
       .on('end', function (event, d) {
         d3.select(this).classed('dragging', false);
+        self.isDragging = false;
+        self.cdr.detectChanges();
+
         if (!self._dragOrigStart || !self._dragOrigEnd) return;
         
-        // Calculate new start/end
         const currentX = d.x;
         const newStart = self.xScale.invert(currentX);
         const duration = self._dragOrigEnd.getTime() - self._dragOrigStart.getTime();
@@ -645,33 +714,49 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
         event.sourceEvent.stopPropagation();
         event.sourceEvent.preventDefault();
         self.didDrag = true;
-        self._dragStartMouseX = event.sourceEvent.clientX; // For reference if needed, but we use dx
+        self.isDragging = true;
+        self.dragOffsetX = event.x - d.x;
+        
         self._dragOrigStart = new Date(d.order.data.startDate);
         self._dragOrigEnd = new Date(d.order.data.endDate);
+
+        self.ghostBar = {
+          visible: true,
+          x: d.x + LEFT_PANEL_WIDTH, y: d.y, w: d.w, h: d.h,
+          name: d.order.data.name,
+          status: d.order.data.status,
+          docId: d.order.docId,
+          class: `ghost-bar preview-${d.order.data.status}`,
+        };
+        // Hide original during resize
+        d3.select(this.parentNode as any).style('opacity', 0);
+        self.cdr.detectChanges();
       })
       .on('drag', function (event, d) {
-        const dx = event.dx;
-        d.x += dx;
-        d.w -= dx;
-        // Update parent group transform
-        const group = d3.select(this.parentNode?.parentNode as SVGGElement);
-        group.attr('transform', `translate(${d.x}, ${d.y})`);
+        const proposedX = event.x - self.dragOffsetX;
+        const dx = proposedX - d.x;
         
-        // Update bars layout visually? Or wait for end?
-        // Updating visual width
-        group.select('rect.bar-rect').attr('width', Math.max(d.w, 2));
+        self.ghostBar.x = proposedX + LEFT_PANEL_WIDTH;
+        self.ghostBar.w = Math.max(d.w - dx, 2);
+        self.requestGhostUpdate();
       })
       .on('end', function (event, d) {
+        self.isDragging = false;
+        const finalGhostX = self.ghostBar.x - LEFT_PANEL_WIDTH;
+        const finalGhostW = self.ghostBar.w;
+        
+        self.ghostBar.visible = true; // KEEP VISIBLE until confirmation
+        const group = d3.select(this.parentNode as any);
+        group.style('opacity', 0.4); // Dim original while previewing
+        self.cdr.detectChanges();
+
         if (!self._dragOrigStart || !self._dragOrigEnd) return;
-        const newStart = self.xScale.invert(d.x);
-        // Only update startDate
-         const newStartIso = toIso(roundToDay(newStart));
-          // Check overlap... logic similar to move
-          if (newStart < self._dragOrigEnd!) { // Ensure start < end
-             updateOrderDates(d.order, newStart, self._dragOrigEnd!);
-          } else {
-             self.renderChart(); // Revert
-          }
+        const newStart = self.xScale.invert(finalGhostX);
+        if (newStart < self._dragOrigEnd!) {
+           updateOrderDates(d.order, newStart, self._dragOrigEnd!);
+        } else {
+           self.renderChart();
+        }
         self._dragOrigStart = null;
         self._dragOrigEnd = null;
       });
@@ -683,18 +768,40 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
         event.sourceEvent.stopPropagation();
         event.sourceEvent.preventDefault();
         self.didDrag = true;
+        self.isDragging = true;
+        self.dragOffsetX = event.x - (d.x + d.w);
+        
         self._dragOrigStart = new Date(d.order.data.startDate);
         self._dragOrigEnd = new Date(d.order.data.endDate);
+
+        self.ghostBar = {
+          visible: true,
+          x: d.x + LEFT_PANEL_WIDTH, y: d.y, w: d.w, h: d.h,
+          name: d.order.data.name,
+          status: d.order.data.status,
+          docId: d.order.docId,
+          class: `ghost-bar preview-${d.order.data.status}`,
+        };
+        // Hide original during resize
+        d3.select(this.parentNode as any).style('opacity', 0);
+        self.cdr.detectChanges();
       })
       .on('drag', function (event, d) {
-        const dx = event.dx;
-        d.w += dx;
-        const group = d3.select(this.parentNode?.parentNode as SVGGElement);
-        group.select('rect.bar-rect').attr('width', Math.max(d.w, 2));
+        const proposedEndX = event.x - self.dragOffsetX;
+        self.ghostBar.w = Math.max(proposedEndX - d.x, 2);
+        self.requestGhostUpdate();
       })
       .on('end', function (event, d) {
+        self.isDragging = false;
+        const finalGhostW = self.ghostBar.w;
+        
+        self.ghostBar.visible = true; // KEEP VISIBLE until confirmation
+        const group = d3.select(this.parentNode as any);
+        group.style('opacity', 0.4); // Dim original while previewing
+        self.cdr.detectChanges();
+
         if (!self._dragOrigStart || !self._dragOrigEnd) return;
-        const newEnd = self.xScale.invert(d.x + d.w);
+        const newEnd = self.xScale.invert(d.x + finalGhostW);
         if (newEnd > self._dragOrigStart!) {
             updateOrderDates(d.order, self._dragOrigStart!, newEnd);
         } else {
@@ -722,13 +829,24 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
     // Bar rect
     enter.append('rect').attr('class', 'bar-rect');
 
-    // Left resize handle
+    // Left resize handle overlay
     enter.append('rect').attr('class', 'resize-handle resize-left')
       .call(resizeLeftDrag);
 
-    // Right resize handle
+    // Right resize handle overlay
     enter.append('rect').attr('class', 'resize-handle resize-right')
       .call(resizeRightDrag);
+
+    // Grip decorations (visual only)
+    const leftGrip = enter.append('g').attr('class', 'grip-group grip-left');
+    leftGrip.append('rect').attr('class', 'grip-bg').attr('rx', 2);
+    leftGrip.append('line').attr('class', 'grip-line').attr('x1', 3).attr('x2', 3);
+    leftGrip.append('line').attr('class', 'grip-line').attr('x1', 5).attr('x2', 5);
+
+    const rightGrip = enter.append('g').attr('class', 'grip-group grip-right');
+    rightGrip.append('rect').attr('class', 'grip-bg').attr('rx', 2);
+    rightGrip.append('line').attr('class', 'grip-line').attr('x1', -3).attr('x2', -3);
+    rightGrip.append('line').attr('class', 'grip-line').attr('x1', -5).attr('x2', -5);
 
     // Clipped content group
     const contentGroup = enter.append('g')
@@ -768,7 +886,8 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
 
     // ── Merge: update positions ──
     const merged = enter.merge(barGroups);
-    merged.attr('transform', d => `translate(${d.x}, ${d.y})`);
+    merged.attr('transform', d => `translate(${d.x}, ${d.y})`)
+          .style('opacity', 1); // Restore visibility/opacity after interactions
     
     // Update cursor style based on admin
     merged.style('cursor', () => this.auth.isAdmin() ? 'grab' : 'default');
@@ -786,18 +905,42 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
 
     // Update resize handles
     merged.select<SVGRectElement>('rect.resize-left')
-      .attr('x', 0).attr('y', 0)
-      .attr('width', 8).attr('height', d => d.h)
-      .style('cursor', () => this.auth.isAdmin() ? 'ew-resize' : 'default');
+      .attr('x', -5).attr('y', 0)
+      .attr('width', 15).attr('height', d => d.h)
+      .style('display', () => this.auth.isAdmin() ? 'block' : 'none');
 
     merged.select<SVGRectElement>('rect.resize-right')
-      .attr('x', d => Math.max(d.w - 8, 0)).attr('y', 0)
-      .attr('width', 8).attr('height', d => d.h)
-      .style('cursor', () => this.auth.isAdmin() ? 'ew-resize' : 'default');
+      .attr('x', d => Math.max(d.w - 10, 0)).attr('y', 0)
+      .attr('width', 15).attr('height', d => d.h)
+      .style('display', () => this.auth.isAdmin() ? 'block' : 'none');
+
+    // Update grips
+    merged.select('g.grip-left').style('display', () => this.auth.isAdmin() ? 'block' : 'none');
+    merged.select('g.grip-left rect')
+      .attr('x', 1)
+      .attr('y', 8)
+      .attr('width', 7)
+      .attr('height', d => d.h - 16);
+    merged.select('g.grip-left line.grip-line:nth-child(2)')
+      .attr('y1', 12).attr('y2', d => d.h - 12);
+    merged.select('g.grip-left line.grip-line:nth-child(3)')
+      .attr('y1', 12).attr('y2', d => d.h - 12);
+
+    merged.select('g.grip-right').style('display', () => this.auth.isAdmin() ? 'block' : 'none');
+    merged.select('g.grip-right').attr('transform', d => `translate(${d.w}, 0)`);
+    merged.select('g.grip-right rect')
+      .attr('x', -8)
+      .attr('y', 8)
+      .attr('width', 7)
+      .attr('height', d => d.h - 16);
+    merged.select('g.grip-right line.grip-line:nth-child(2)')
+      .attr('y1', 12).attr('y2', d => d.h - 12);
+    merged.select('g.grip-right line.grip-line:nth-child(3)')
+      .attr('y1', 12).attr('y2', d => d.h - 12);
 
     // Update title
     merged.select<SVGTextElement>('text.bar-title')
-      .attr('x', 12)
+      .attr('x', 18)
       .attr('y', d => d.h / 2)
       .attr('dominant-baseline', 'central')
       .text(d => d.order.data.name);
@@ -1100,6 +1243,34 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
   onCancelDelete(): void {
     this.confirmOrderToDelete = null;
     this.confirmVisible = false;
+    this.cdr.detectChanges();
+  }
+
+  /* ══════════════════════════════════════════════
+     CONFIRM UPDATE HANDLERS
+     ══════════════════════════════════════════════ */
+
+  onConfirmUpdate(): void {
+    if (this.pendingUpdate) {
+      const { order, newStartIso, newEndIso } = this.pendingUpdate;
+      this.store.updateWorkOrder(order.docId, {
+        ...order.data,
+        startDate: newStartIso,
+        endDate: newEndIso,
+      });
+    }
+    this.ghostBar.visible = false;
+    this.pendingUpdate = null;
+    this.confirmUpdateVisible = false;
+    this.renderChart();
+    this.cdr.detectChanges();
+  }
+
+  onCancelUpdate(): void {
+    this.ghostBar.visible = false;
+    this.pendingUpdate = null;
+    this.confirmUpdateVisible = false;
+    this.renderChart(); // Revert visual drag
     this.cdr.detectChanges();
   }
 
