@@ -251,9 +251,10 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
 }
 
 .btn-calendar {
-  border: 1px solid #e8e8f0;
+  border: 1px solid var(--color-border-strong, #e8e8f0);
   border-left: none;
-  background: #ffffff;
+  background: var(--color-bg-secondary, #ffffff);
+  color: var(--color-text-secondary, #8b8fa3);
   border-top-right-radius: 6px;
   border-bottom-right-radius: 6px;
   padding: 0 12px;
@@ -263,16 +264,16 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   justify-content: center;
 
   &:hover {
-    background: #f7f7fb;
+    background: var(--color-bg-hover, #f7f7fb);
   }
 }
 
 /* ── ng-select Custom Styling ── */
 ::ng-deep .ng-select.status-ng-select .ng-select-container {
-  border: 1px solid #e8e8f0;
+  border: 1px solid var(--color-border-strong, #e8e8f0);
   border-radius: 6px;
   min-height: 42px;
-  background: #ffffff;
+  background: var(--color-bg-secondary, #ffffff);
 }
 
 ::ng-deep .ng-select.status-ng-select.ng-select-opened .ng-select-container {

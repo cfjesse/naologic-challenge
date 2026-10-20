@@ -9,9 +9,12 @@ import {
   ElementRef,
   ChangeDetectorRef,
   HostListener,
+  Output,
+  EventEmitter,
   inject,
   ViewEncapsulation,
   effect,
+  computed,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -19,8 +22,6 @@ import { NgSelectModule } from '@ng-select/ng-select';
 import { NgbOffcanvas, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { CsvExportComponent } from '../csv-export/csv-export';
 import { trigger, transition, style, animate } from '@angular/animations';
-import { Subject, timer } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
 import * as d3 from 'd3';
 import { DateTime } from 'luxon';
 
@@ -32,10 +33,14 @@ import {
 } from '../work-order-panel/work-order-panel';
 import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog';
 import { ActiveOrdersCardComponent } from '../active-orders-card/active-orders-card';
+import { WorkOrderKanbanComponent } from '../work-order-kanban/work-order-kanban';
+import { WorkOrderTableComponent } from '../work-order-table/work-order-table';
 
 import {
   ActiveMenu,
   TooltipState,
+  DragAlertInfo,
+  DragDateEvent,
 } from './work-order-timeline.types';
 import { AuthService } from '../../services/auth';
 import { ApiService } from '../../services/api';
@@ -49,7 +54,6 @@ import {
   calculateInitialStart,
   getColumnsPerScreen,
   COLUMN_MIN_WIDTH,
-  LEFT_PANEL_WIDTH,
 } from './work-order-timeline.utils';
 
 /* ── Local interfaces for D3 data binding ── */
@@ -70,6 +74,8 @@ interface BarDatum {
     NgSelectModule,
     ConfirmDialogComponent,
     ActiveOrdersCardComponent,
+    WorkOrderKanbanComponent,
+    WorkOrderTableComponent,
   ],
   templateUrl: './work-order-timeline.html',
   styleUrl: './work-order-timeline.scss',
@@ -84,19 +90,207 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
   protected readonly auth = inject(AuthService);
   private readonly api = inject(ApiService);
 
-  /* ── RxJS ── */
-  private readonly destroy$ = new Subject<void>();
-
   /* ── Refs ── */
   @ViewChild('ganttSvg', { static: false }) ganttSvgRef!: ElementRef<SVGSVGElement>;
   @ViewChild('ganttWrapper', { static: false }) ganttWrapperRef!: ElementRef<HTMLDivElement>;
+  @ViewChild('leftPanel', { static: false }) leftPanelRef?: ElementRef<HTMLDivElement>;
+
+  /* ── Work Center Collapsible & Simplified Menu State ── */
+  isWorkCenterCollapsed = false;
+  activeCollapsedMenuWcId: string | null = null;
+
+  /* ── Gantt Analytics Charts (Pure Reactive Signals) ── */
+  showGanttCharts = true;
+
+  readonly timelineOrders = computed(() => this.store.filteredWorkOrders());
+
+  readonly timelineTotalOrders = computed(() => this.timelineOrders().length);
+
+  readonly timelineTotalScheduledDays = computed(() => {
+    return this.timelineOrders().reduce((sum, order) => {
+      const start = DateTime.fromISO(order.data.startDate);
+      const end = DateTime.fromISO(order.data.endDate);
+      const diff = Math.max(1, Math.round(end.diff(start, 'days').days));
+      return sum + diff;
+    }, 0);
+  });
+
+  readonly timelineStatusBreakdown = computed(() => {
+    const orders = this.timelineOrders();
+    const total = orders.length;
+    const colors: Record<Models.WorkOrderStatus, string> = {
+      open: '#6366f1',
+      'in-progress': '#0284c7',
+      blocked: '#ef4444',
+      complete: '#10b981',
+    };
+    const labels: Record<Models.WorkOrderStatus, string> = {
+      open: 'Open',
+      'in-progress': 'In Progress',
+      blocked: 'Blocked',
+      complete: 'Complete',
+    };
+
+    const circumference = 2 * Math.PI * 36;
+    let accumulated = 0;
+
+    return (['open', 'in-progress', 'blocked', 'complete'] as Models.WorkOrderStatus[]).map((status) => {
+      const count = orders.filter((o) => o.data.status === status).length;
+      const ratio = total > 0 ? count / total : 0;
+      const percent = Math.round(ratio * 100);
+      const dash = ratio * circumference;
+      const space = circumference - dash;
+      const offset = -(accumulated * circumference);
+      accumulated += ratio;
+
+      return {
+        status,
+        label: labels[status],
+        count,
+        percent,
+        color: colors[status],
+        strokeDasharray: `${dash.toFixed(2)} ${space.toFixed(2)}`,
+        strokeDashoffset: Number(offset.toFixed(2)),
+      };
+    });
+  });
+
+  readonly timelineStationLoads = computed(() => {
+    const centers = this.store.workCenters();
+    const orders = this.timelineOrders();
+
+    const loads = centers.map((wc) => {
+      const wcOrders = orders.filter((o) => o.data.workCenterId === wc.docId);
+      const days = wcOrders.reduce((sum, o) => {
+        const start = DateTime.fromISO(o.data.startDate);
+        const end = DateTime.fromISO(o.data.endDate);
+        return sum + Math.max(1, Math.round(end.diff(start, 'days').days));
+      }, 0);
+
+      return {
+        id: wc.docId,
+        name: wc.data.name,
+        count: wcOrders.length,
+        days,
+        percent: 0,
+      };
+    });
+
+    const maxDays = Math.max(...loads.map((l) => l.days), 1);
+    loads.forEach((l) => {
+      l.percent = Math.round((l.days / maxDays) * 100);
+    });
+
+    return loads;
+  });
+
+  readonly timelineConflictsCount = computed(() => {
+    const orders = this.store.workOrders();
+    let conflicts = 0;
+    for (let i = 0; i < orders.length; i++) {
+      for (let j = i + 1; j < orders.length; j++) {
+        if (orders[i].data.workCenterId === orders[j].data.workCenterId) {
+          const s1 = new Date(orders[i].data.startDate).getTime();
+          const e1 = new Date(orders[i].data.endDate).getTime();
+          const s2 = new Date(orders[j].data.startDate).getTime();
+          const e2 = new Date(orders[j].data.endDate).getTime();
+          if (s1 < e2 && e1 > s2) {
+            conflicts++;
+          }
+        }
+      }
+    }
+    return conflicts;
+  });
+
+  readonly busiestStationName = computed(() => {
+    const loads = this.timelineStationLoads();
+    if (loads.length === 0) return 'None';
+    const sorted = [...loads].sort((a, b) => b.days - a.days);
+    return sorted[0].count > 0 ? `${sorted[0].name} (${sorted[0].days}d)` : 'None';
+  });
+
+  /* ── Data Actions Menu & Feedback ── */
+  dataMenuOpen = false;
+  dataToastMessage: string | null = null;
+  private toastTimeout: any = null;
+
+  toggleDataMenu(event: MouseEvent): void {
+    event.stopPropagation();
+    this.dataMenuOpen = !this.dataMenuOpen;
+  }
+
+  onRefreshData(): void {
+    this.dataMenuOpen = false;
+    this.store.refreshData();
+    this.showDataToast('Timeline and orders data refreshed');
+    setTimeout(() => {
+      this.initViewport();
+      this.renderChart();
+    }, 50);
+  }
+
+  onGenerateNewData(): void {
+    this.dataMenuOpen = false;
+    this.store.generateNewData();
+    this.showDataToast('Generated fresh randomized work orders');
+    setTimeout(() => {
+      this.initViewport();
+      this.renderChart();
+    }, 50);
+  }
+
+  onResetToDefaults(): void {
+    this.dataMenuOpen = false;
+    this.store.resetToDefaults();
+    this.showDataToast('Reset schedule to default baseline');
+    setTimeout(() => {
+      this.initViewport();
+      this.renderChart();
+    }, 50);
+  }
+
+  private showDataToast(message: string): void {
+    this.dataToastMessage = message;
+    if (this.toastTimeout) clearTimeout(this.toastTimeout);
+    this.toastTimeout = setTimeout(() => {
+      this.dataToastMessage = null;
+      this.cdr.detectChanges();
+    }, 3200);
+    this.cdr.detectChanges();
+  }
+
+  /* ── View Mode ── */
+  currentView: 'timeline' | 'kanban' | 'table' = 'timeline';
+
+  setView(view: 'timeline' | 'kanban' | 'table'): void {
+    this.currentView = view;
+    // Always refresh data from backend/storage when switching views
+    this.store.refreshData();
+
+    if (view === 'timeline') {
+      setTimeout(() => {
+        const svgEl = this.ganttSvgRef?.nativeElement;
+        if (svgEl) {
+          if (!this.svg || this.svg.node() !== svgEl) {
+            d3.select(svgEl).selectAll('*').remove();
+            this.initD3();
+          }
+          this.initViewport();
+          this.renderChart();
+          this.updateActiveOrders();
+        }
+      }, 30);
+    }
+    this.cdr.detectChanges();
+  }
 
   /* ── Timescale ── */
   timeScale: Models.TimeScale = 'Day';
-  readonly timeScaleOptions: Models.TimeScale[] = ['Day', 'Week', 'Month'];
+  timeScaleOptions: Models.TimeScale[] = ['Day', 'Week', 'Month'];
 
   /* ── Status Filter ── */
-  readonly statusFilterOptions: (Models.WorkOrderStatus | 'all')[] = ['all', 'open', 'in-progress', 'complete', 'blocked'];
+  statusFilterOptions: (Models.WorkOrderStatus | 'all')[] = ['all', 'open', 'in-progress', 'complete', 'blocked'];
 
   /* ── Date viewport ── */
   viewportStart = new Date();
@@ -105,6 +299,11 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
 
   activeOrders: Models.WorkOrderDocument[] = []; // Orders visible at cursor position
   cursorPeriodLabel = ''; // e.g. "October 2025" or "Week 42"
+
+  /* ── Timeline Scroll Slider & Step Navigation ── */
+  scrollStepDays = 7; // Default: 1 Week
+  timelineScrollPercent = 0;
+  visibleDateRange = { start: '', end: '' };
 
   /* ── Layout constants ── */
   readonly HEADER_HEIGHT = 36;
@@ -141,6 +340,20 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
   private redrawTimeout: any = null;
   private dragOffsetX = 0;
 
+  /* ── Drag & Drop Output ── */
+  @Output() readonly dragDate = new EventEmitter<DragDateEvent>();
+
+  /* ── Drag Alert State ── */
+  dragAlertInfo: DragAlertInfo | null = null;
+
+  /* ── Add Work Center State ── */
+  addWorkCenterVisible = false;
+  newWorkCenterName = '';
+  addWorkCenterError = '';
+
+  /* ── Scrolling lock ── */
+  private isExpandingViewport = false;
+
   /* ── UI state ── */
   activeMenu: ActiveMenu | null = null;
   confirmVisible = false;
@@ -171,27 +384,40 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
      ══════════════════════════════════════════════ */
 
   constructor() {
-    // REDRAW ON STORE CHANGES
+    // Redraw whenever store signals update
     effect(() => {
-      // Signals to watch
       this.store.workOrders();
       this.store.workCenters();
       this.store.statusFilter();
-      
       this.requestRedraw();
+    });
+
+    // Reactive sync with settings resource signal
+    effect(() => {
+      const settings = typeof this.api.settingsSignal === 'function' ? this.api.settingsSignal() : null;
+      if (settings?.timeScale && settings.timeScale !== this.timeScale) {
+        this.timeScale = settings.timeScale;
+        this.initViewport();
+        if (this.svg) this.renderChart();
+      }
     });
   }
 
   ngOnInit(): void {
-    this.api.getSettings().pipe(takeUntil(this.destroy$)).subscribe(settings => {
-      if (settings && settings.timeScale) {
-        this.timeScale = settings.timeScale;
-        this.initViewport();
-        // Check if view is initialized (it might not be if response is fast)
-        if (this.svg) this.renderChart();
+    this.initViewport();
+    // Populate dropdowns from API
+    this.api.getTimescales().subscribe(scales => {
+      if (scales && scales.length > 0) {
+        this.timeScaleOptions = scales;
+        this.cdr.detectChanges();
       }
     });
-    this.initViewport();
+    this.api.getStatuses().subscribe(statuses => {
+      if (statuses && statuses.length > 0) {
+        this.statusFilterOptions = ['all', ...statuses.map(s => s.value)];
+        this.cdr.detectChanges();
+      }
+    });
   }
 
   ngAfterViewInit(): void {
@@ -200,8 +426,8 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
   }
 
   ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
+    if (this.redrawTimeout) clearTimeout(this.redrawTimeout);
+    if (this.toastTimeout) clearTimeout(this.toastTimeout);
   }
 
   @HostListener('window:resize')
@@ -245,7 +471,8 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
   }
 
   private calculateMinimumEnd(start: Date): Date {
-    const columnsPerScreen = getColumnsPerScreen();
+    const leftWidth = this.isWorkCenterCollapsed ? 68 : 280;
+    const columnsPerScreen = getColumnsPerScreen(leftWidth);
     const totalColumns = columnsPerScreen * 3;
     const interval = getInterval(this.timeScale);
     return interval.offset(interval.floor(start), totalColumns);
@@ -318,6 +545,7 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
     this.renderCursor(now);
     // Update active orders list
     this.updateActiveOrders();
+    this.updateTimelineScrollSlider();
     
     this.cdr.detectChanges();
   }
@@ -457,6 +685,8 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
       };
     });
 
+    const self = this;
+
     // ── Header background strip ──
     const strip = this.headerGroup.selectAll<SVGRectElement, number>('rect.header-strip')
       .data([1]);
@@ -464,7 +694,14 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
       .attr('class', 'header-strip')
       .attr('x', 0).attr('y', 0)
       .attr('width', this.svgWidth)
-      .attr('height', this.HEADER_HEIGHT);
+      .attr('height', this.HEADER_HEIGHT)
+      .style('cursor', 'pointer')
+      .on('click', function (event: MouseEvent) {
+        const [x] = d3.pointer(event, self.svg.node());
+        self.cursorDate = self.xScale.invert(x);
+        self.renderChart();
+        self.cdr.detectChanges();
+      });
 
     // ── Column header cells ──
     const headerCells = this.headerGroup
@@ -476,7 +713,14 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
       .attr('x', d => d.x)
       .attr('y', 0)
       .attr('width', d => d.w)
-      .attr('height', this.HEADER_HEIGHT);
+      .attr('height', this.HEADER_HEIGHT)
+      .style('cursor', 'pointer')
+      .on('click', function (event: MouseEvent, d) {
+        const [x] = d3.pointer(event, self.svg.node());
+        self.cursorDate = self.xScale.invert(x);
+        self.renderChart();
+        self.cdr.detectChanges();
+      });
 
     // ── Column labels ──
     const labels = this.headerGroup
@@ -489,6 +733,7 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
       .attr('y', this.HEADER_HEIGHT / 2)
       .attr('text-anchor', 'middle')
       .attr('dominant-baseline', 'central')
+      .style('pointer-events', 'none')
       .text(d => d.label);
 
     // ── Header bottom border ──
@@ -608,6 +853,78 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
     this.highlightGroup.selectAll('*').remove();
   }
 
+  /* ── Emit Drag Date & Real-time Info ── */
+  private emitDragDate(
+    order: Models.WorkOrderDocument,
+    rawStart: Date,
+    rawEnd: Date,
+    mode: 'move' | 'resize-left' | 'resize-right',
+    event: any
+  ): void {
+    let start = rawStart;
+    let end = rawEnd;
+    if (start > end) {
+      const temp = start;
+      start = end;
+      end = temp;
+    }
+
+    const roundedStart = roundToDay(start);
+    const roundedEnd = roundToDay(end);
+    const isoStart = toIso(roundedStart);
+    const isoEnd = toIso(roundedEnd);
+
+    const overlap = this.store.checkOverlap(
+      order.data.workCenterId,
+      isoStart,
+      isoEnd,
+      order.docId
+    );
+
+    const startFormatted = DateTime.fromJSDate(roundedStart).toFormat('MMM dd, yyyy');
+    const endFormatted = DateTime.fromJSDate(roundedEnd).toFormat('MMM dd, yyyy');
+    const durationDays = Math.max(
+      1,
+      Math.round((roundedEnd.getTime() - roundedStart.getTime()) / (1000 * 60 * 60 * 24))
+    );
+
+    this.dragAlertInfo = {
+      orderName: order.data.name,
+      mode,
+      startDateIso: isoStart,
+      endDateIso: isoEnd,
+      startDateFormatted: startFormatted,
+      endDateFormatted: endFormatted,
+      durationDays,
+      hasOverlap: !!overlap,
+      overlapOrderName: overlap ? overlap.data.name : undefined,
+    };
+
+    const mouseEvent = event?.sourceEvent ?? event;
+    const clientX = mouseEvent?.clientX ?? 0;
+    const clientY = mouseEvent?.clientY ?? 0;
+
+    this.tooltip = {
+      visible: true,
+      text: overlap
+        ? `⚠️ Overlap with "${overlap.data.name}" (${DateTime.fromJSDate(roundedStart).toFormat('MMM dd')} – ${DateTime.fromJSDate(roundedEnd).toFormat('MMM dd')})`
+        : `${mode === 'move' ? 'Moving to' : 'Resizing to'}: ${DateTime.fromJSDate(roundedStart).toFormat('MMM dd')} – ${endFormatted}`,
+      x: clientX,
+      y: clientY - 15,
+    };
+
+    this.dragDate.emit({
+      order,
+      newStartDate: roundedStart,
+      newEndDate: roundedEnd,
+      isoStartDate: isoStart,
+      isoEndDate: isoEnd,
+      mode,
+    });
+
+    this.cdr.detectChanges();
+  }
+
   /* ══════════════════════════════════════════════
      D3 RENDERING — BARS
      ══════════════════════════════════════════════ */
@@ -645,6 +962,7 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
 
       if (overlap) {
         self.ghostBar.visible = false;
+        self.dragAlertInfo = null;
         self.renderChart(); // Revert visual drag
         return;
       }
@@ -652,6 +970,7 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
       // If no change, just re-render to snap
       if (newStartIso === order.data.startDate && newEndIso === order.data.endDate) {
         self.ghostBar.visible = false;
+        self.dragAlertInfo = null;
         self.renderChart();
         return;
       }
@@ -659,7 +978,7 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
       // Snap ghost bar to the actual proposed dates for precision
       const finalStartDate = roundToDay(newStart);
       const finalEndDate = roundToDay(newEnd);
-      self.ghostBar.x = self.xScale(finalStartDate) + LEFT_PANEL_WIDTH;
+      self.ghostBar.x = self.xScale(finalStartDate);
       self.ghostBar.w = self.xScale(finalEndDate) - self.xScale(finalStartDate);
       self.ghostBar.visible = true; // Ensure it stays visible
 
@@ -685,16 +1004,29 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
       })
       .on('drag', function (event, d) {
         if (!self._dragOrigStart || !self._dragOrigEnd) return;
-        // Direct SVG update for whole-bar move is smoother
         d.x = event.x - self.dragOffsetX;
         d3.select(this).attr('transform', `translate(${d.x}, ${d.y})`);
+
+        if (event.sourceEvent) {
+          self.handleDragAutoScroll(event.sourceEvent.clientX);
+        }
+
+        const currentX = d.x;
+        const newStart = self.xScale.invert(currentX);
+        const duration = self._dragOrigEnd.getTime() - self._dragOrigStart.getTime();
+        const newEnd = new Date(newStart.getTime() + duration);
+        self.emitDragDate(d.order, newStart, newEnd, 'move', event);
       })
       .on('end', function (event, d) {
         d3.select(this).classed('dragging', false);
         self.isDragging = false;
+        self.tooltip.visible = false;
         self.cdr.detectChanges();
 
-        if (!self._dragOrigStart || !self._dragOrigEnd) return;
+        if (!self._dragOrigStart || !self._dragOrigEnd) {
+          self.dragAlertInfo = null;
+          return;
+        }
         
         const currentX = d.x;
         const newStart = self.xScale.invert(currentX);
@@ -722,7 +1054,7 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
 
         self.ghostBar = {
           visible: true,
-          x: d.x + LEFT_PANEL_WIDTH, y: d.y, w: d.w, h: d.h,
+          x: d.x, y: d.y, w: d.w, h: d.h,
           name: d.order.data.name,
           status: d.order.data.status,
           docId: d.order.docId,
@@ -736,13 +1068,21 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
         const proposedX = event.x - self.dragOffsetX;
         const dx = proposedX - d.x;
         
-        self.ghostBar.x = proposedX + LEFT_PANEL_WIDTH;
+        self.ghostBar.x = proposedX;
         self.ghostBar.w = Math.max(d.w - dx, 2);
         self.requestGhostUpdate();
+
+        if (event.sourceEvent) {
+          self.handleDragAutoScroll(event.sourceEvent.clientX);
+        }
+
+        const newStart = self.xScale.invert(proposedX);
+        self.emitDragDate(d.order, newStart, self._dragOrigEnd!, 'resize-left', event);
       })
       .on('end', function (event, d) {
         self.isDragging = false;
-        const finalGhostX = self.ghostBar.x - LEFT_PANEL_WIDTH;
+        self.tooltip.visible = false;
+        const finalGhostX = self.ghostBar.x;
         const finalGhostW = self.ghostBar.w;
         
         self.ghostBar.visible = true; // KEEP VISIBLE until confirmation
@@ -750,11 +1090,15 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
         group.style('opacity', 0.4); // Dim original while previewing
         self.cdr.detectChanges();
 
-        if (!self._dragOrigStart || !self._dragOrigEnd) return;
+        if (!self._dragOrigStart || !self._dragOrigEnd) {
+          self.dragAlertInfo = null;
+          return;
+        }
         const newStart = self.xScale.invert(finalGhostX);
         if (newStart < self._dragOrigEnd!) {
            updateOrderDates(d.order, newStart, self._dragOrigEnd!);
         } else {
+           self.dragAlertInfo = null;
            self.renderChart();
         }
         self._dragOrigStart = null;
@@ -776,7 +1120,7 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
 
         self.ghostBar = {
           visible: true,
-          x: d.x + LEFT_PANEL_WIDTH, y: d.y, w: d.w, h: d.h,
+          x: d.x, y: d.y, w: d.w, h: d.h,
           name: d.order.data.name,
           status: d.order.data.status,
           docId: d.order.docId,
@@ -790,9 +1134,17 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
         const proposedEndX = event.x - self.dragOffsetX;
         self.ghostBar.w = Math.max(proposedEndX - d.x, 2);
         self.requestGhostUpdate();
+
+        if (event.sourceEvent) {
+          self.handleDragAutoScroll(event.sourceEvent.clientX);
+        }
+
+        const newEnd = self.xScale.invert(proposedEndX);
+        self.emitDragDate(d.order, self._dragOrigStart!, newEnd, 'resize-right', event);
       })
       .on('end', function (event, d) {
         self.isDragging = false;
+        self.tooltip.visible = false;
         const finalGhostW = self.ghostBar.w;
         
         self.ghostBar.visible = true; // KEEP VISIBLE until confirmation
@@ -800,11 +1152,15 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
         group.style('opacity', 0.4); // Dim original while previewing
         self.cdr.detectChanges();
 
-        if (!self._dragOrigStart || !self._dragOrigEnd) return;
+        if (!self._dragOrigStart || !self._dragOrigEnd) {
+          self.dragAlertInfo = null;
+          return;
+        }
         const newEnd = self.xScale.invert(d.x + finalGhostW);
         if (newEnd > self._dragOrigStart!) {
             updateOrderDates(d.order, self._dragOrigStart!, newEnd);
         } else {
+            self.dragAlertInfo = null;
             self.renderChart();
         }
         self._dragOrigStart = null;
@@ -1051,21 +1407,20 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
     if (!wrapper) return;
 
     const rect = wrapper.getBoundingClientRect();
-    const edgeSize = 120;
-    const scrollSpeed = 25;
+    const edgeSize = 140;
+    const scrollSpeed = 22;
 
+    // Right edge autoscroll
     if (clientX >= rect.right - edgeSize) {
-      wrapper.scrollLeft += scrollSpeed;
-
-      const { scrollLeft, scrollWidth, clientWidth } = wrapper;
-      if (scrollLeft + clientWidth >= scrollWidth - this.COLUMN_MIN_WIDTH * 2) {
-        const interval = getInterval(this.timeScale);
-        const columnsPerScreen = getColumnsPerScreen();
-        this.viewportEnd = interval.offset(this.viewportEnd, columnsPerScreen);
-        // Don't call renderChart here — the drag handler will do it
-      }
-    } else if (clientX <= rect.left + edgeSize) {
-      wrapper.scrollLeft -= scrollSpeed;
+      const factor = Math.min(1, Math.max(0.2, (clientX - (rect.right - edgeSize)) / edgeSize));
+      wrapper.scrollLeft += Math.round(scrollSpeed * factor);
+      this.checkInfiniteScroll();
+    } 
+    // Left edge autoscroll
+    else if (clientX <= rect.left + edgeSize && clientX >= rect.left) {
+      const factor = Math.min(1, Math.max(0.2, ((rect.left + edgeSize) - clientX) / edgeSize));
+      wrapper.scrollLeft -= Math.round(scrollSpeed * factor);
+      this.checkInfiniteScroll();
     }
   }
 
@@ -1080,9 +1435,12 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
 
   onTimeScaleChange(scale: Models.TimeScale): void {
     this.timeScale = scale;
-    this.api.updateSettings({ timeScale: scale }).pipe(takeUntil(this.destroy$)).subscribe();
+    this.api.updateSettings({ timeScale: scale }).subscribe();
     this.initViewport();
     this.renderChart();
+    setTimeout(() => {
+      this.scrollToDate(this.cursorDate || new Date());
+    }, 50);
   }
 
   centerViewportOnToday(): void {
@@ -1100,17 +1458,122 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
     this.updateActiveOrders();
 
     // Scroll to center on today
-    timer(0).pipe(takeUntil(this.destroy$)).subscribe(() => {
+    setTimeout(() => {
       this.scrollToDate(now);
-    });
+    }, 0);
   }
 
   /* ══════════════════════════════════════════════
      SCROLLING & INFINITE SCROLL
      ══════════════════════════════════════════════ */
 
+  onLeftPanelScroll(): void {
+    if (this.leftPanelRef?.nativeElement && this.ganttWrapperRef?.nativeElement) {
+      this.ganttWrapperRef.nativeElement.scrollTop = this.leftPanelRef.nativeElement.scrollTop;
+    }
+  }
+
   onGanttScroll(): void {
+    if (this.leftPanelRef?.nativeElement && this.ganttWrapperRef?.nativeElement) {
+      this.leftPanelRef.nativeElement.scrollTop = this.ganttWrapperRef.nativeElement.scrollTop;
+    }
+    this.updateTimelineScrollSlider();
     this.checkInfiniteScroll();
+  }
+
+  /* ── Timeline Navigation & Scrubber Methods ── */
+  setScrollStep(days: number): void {
+    this.scrollStepDays = Math.max(1, Math.min(180, days));
+  }
+
+  onCustomStepChange(val: number): void {
+    if (val && !isNaN(val)) {
+      this.scrollStepDays = Math.max(1, Math.min(180, val));
+    }
+  }
+
+  getStepLabel(): string {
+    if (this.scrollStepDays === 7) return '1 Week';
+    if (this.scrollStepDays === 1) return '1 Day';
+    if (this.scrollStepDays === 14) return '2 Weeks';
+    if (this.scrollStepDays === 30) return '1 Month';
+    return `${this.scrollStepDays} Days`;
+  }
+
+  scrollTimeline(direction: -1 | 1): void {
+    const wrapper = this.ganttWrapperRef?.nativeElement;
+    if (!wrapper || !this.xScale) return;
+
+    // Calculate pixel distance for scrollStepDays
+    const d1 = this.viewportStart;
+    const d2 = DateTime.fromJSDate(d1).plus({ days: this.scrollStepDays }).toJSDate();
+    const pixelDistance = Math.max(20, Math.abs(this.xScale(d2) - this.xScale(d1)));
+    const delta = pixelDistance * direction;
+
+    wrapper.scrollBy({ left: delta, behavior: 'smooth' });
+    this.updateTimelineScrollSlider();
+    this.checkInfiniteScroll();
+  }
+
+  onSliderInput(event: Event): void {
+    const val = Number((event.target as HTMLInputElement).value);
+    this.timelineScrollPercent = val;
+    const wrapper = this.ganttWrapperRef?.nativeElement;
+    if (!wrapper) return;
+    const maxScroll = wrapper.scrollWidth - wrapper.clientWidth;
+    if (maxScroll > 0) {
+      wrapper.scrollLeft = (val / 100) * maxScroll;
+      this.updateVisibleDateRange();
+      this.checkInfiniteScroll();
+    }
+  }
+
+  updateTimelineScrollSlider(): void {
+    const wrapper = this.ganttWrapperRef?.nativeElement;
+    if (!wrapper) return;
+    const maxScroll = wrapper.scrollWidth - wrapper.clientWidth;
+    if (maxScroll > 0) {
+      this.timelineScrollPercent = Math.min(100, Math.max(0, (wrapper.scrollLeft / maxScroll) * 100));
+    } else {
+      this.timelineScrollPercent = 0;
+    }
+    this.updateVisibleDateRange();
+  }
+
+  private updateVisibleDateRange(): void {
+    const wrapper = this.ganttWrapperRef?.nativeElement;
+    if (!wrapper || !this.xScale) return;
+
+    const leftX = wrapper.scrollLeft;
+    const rightX = wrapper.scrollLeft + wrapper.clientWidth;
+
+    try {
+      const startDate = this.xScale.invert(leftX);
+      const endDate = this.xScale.invert(rightX);
+
+      const format = (d: Date) => {
+        const dt = DateTime.fromJSDate(d);
+        return dt.toFormat('MMM d, yyyy');
+      };
+
+      this.visibleDateRange = {
+        start: format(startDate),
+        end: format(endDate)
+      };
+      this.cdr.markForCheck();
+    } catch (e) {}
+  }
+
+  onGanttWheel(event: WheelEvent): void {
+    const wrapper = this.ganttWrapperRef?.nativeElement;
+    if (!wrapper) return;
+
+    // Map vertical mouse wheel scrolling into horizontal timeline panning
+    if (!event.shiftKey && Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+      wrapper.scrollLeft += event.deltaY;
+      event.preventDefault();
+      this.checkInfiniteScroll();
+    }
   }
 
   private scrollToDate(date: Date): void {
@@ -1119,7 +1582,7 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
     if (!this.xScale) return;
 
     const xPos = this.xScale(date);
-    const scrollTarget = xPos - (wrapper.clientWidth - 280) / 2;
+    const scrollTarget = xPos - wrapper.clientWidth / 2;
 
     wrapper.scrollTo({
       left: Math.max(0, scrollTarget),
@@ -1129,16 +1592,41 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
 
   private checkInfiniteScroll(): void {
     const wrapper = this.ganttWrapperRef?.nativeElement;
-    if (!wrapper) return;
+    if (!wrapper || this.isExpandingViewport) return;
 
     const { scrollLeft, scrollWidth, clientWidth } = wrapper;
     const buffer = this.COLUMN_MIN_WIDTH * 2;
 
+    // Infinite scroll LEFT (Past dates)
+    if (scrollLeft <= buffer) {
+      this.isExpandingViewport = true;
+      const interval = getInterval(this.timeScale);
+      const columnsPerScreen = getColumnsPerScreen();
+      const prevScrollWidth = scrollWidth;
+      const prevScrollLeft = scrollLeft;
+
+      this.viewportStart = interval.offset(this.viewportStart, -columnsPerScreen);
+      this.renderChart();
+
+      // Smoothly preserve scroll position so content doesn't jump
+      requestAnimationFrame(() => {
+        const addedWidth = wrapper.scrollWidth - prevScrollWidth;
+        wrapper.scrollLeft = prevScrollLeft + addedWidth;
+        this.isExpandingViewport = false;
+      });
+      return;
+    }
+
+    // Infinite scroll RIGHT (Future dates)
     if (scrollLeft + clientWidth >= scrollWidth - buffer) {
+      this.isExpandingViewport = true;
       const interval = getInterval(this.timeScale);
       const columnsPerScreen = getColumnsPerScreen();
       this.viewportEnd = interval.offset(this.viewportEnd, columnsPerScreen);
       this.renderChart();
+      requestAnimationFrame(() => {
+        this.isExpandingViewport = false;
+      });
     }
   }
 
@@ -1262,6 +1750,7 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
     this.ghostBar.visible = false;
     this.pendingUpdate = null;
     this.confirmUpdateVisible = false;
+    this.dragAlertInfo = null;
     this.renderChart();
     this.cdr.detectChanges();
   }
@@ -1270,7 +1759,57 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
     this.ghostBar.visible = false;
     this.pendingUpdate = null;
     this.confirmUpdateVisible = false;
+    this.dragAlertInfo = null;
     this.renderChart(); // Revert visual drag
+    this.cdr.detectChanges();
+  }
+
+  /* ══════════════════════════════════════════════
+     WORK CENTER OPERATIONS
+     ══════════════════════════════════════════════ */
+
+  openAddWorkCenter(): void {
+    this.newWorkCenterName = '';
+    this.addWorkCenterError = '';
+    this.addWorkCenterVisible = true;
+    this.cdr.detectChanges();
+  }
+
+  cancelAddWorkCenter(): void {
+    this.addWorkCenterVisible = false;
+    this.newWorkCenterName = '';
+    this.addWorkCenterError = '';
+    this.cdr.detectChanges();
+  }
+
+  onAddWorkCenterOverlayClick(event: MouseEvent): void {
+    if ((event.target as HTMLElement).classList.contains('dialog-overlay')) {
+      this.cancelAddWorkCenter();
+    }
+  }
+
+  confirmAddWorkCenter(): void {
+    const trimmed = this.newWorkCenterName.trim();
+    if (!trimmed) {
+      this.addWorkCenterError = 'Work center name is required.';
+      this.cdr.detectChanges();
+      return;
+    }
+
+    const exists = this.store.workCenters().some(
+      (wc) => wc.data.name.trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    if (exists) {
+      this.addWorkCenterError = 'A work center with this name already exists.';
+      this.cdr.detectChanges();
+      return;
+    }
+
+    this.store.addWorkCenter(trimmed);
+    this.addWorkCenterVisible = false;
+    this.newWorkCenterName = '';
+    this.addWorkCenterError = '';
+    this.renderChart();
     this.cdr.detectChanges();
   }
 
@@ -1278,7 +1817,17 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
      PANEL OPERATIONS (Offcanvas)
      ══════════════════════════════════════════════ */
 
-  private openCreatePanel(workCenterId: string, startDate: Date): void {
+  openCreatePanelDefault(): void {
+    const workCenters = this.store.workCenters();
+    const defaultWcId = workCenters.length > 0 ? workCenters[0].docId : '';
+    if (!defaultWcId) {
+      this.openAddWorkCenter();
+      return;
+    }
+    this.openCreatePanel(defaultWcId, this.cursorDate || new Date());
+  }
+
+  openCreatePanel(workCenterId: string, startDate: Date): void {
     const offcanvasRef = this.offcanvasService.open(WorkOrderPanelComponent, {
       position: 'end',
       panelClass: 'work-order-offcanvas',
@@ -1294,6 +1843,20 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
       (result: PanelSaveEvent) => this.handlePanelSave(result),
       () => {}
     );
+  }
+
+  onKanbanEdit(order: Models.WorkOrderDocument): void {
+    this.openEditPanel(order);
+  }
+
+  onKanbanDelete(order: Models.WorkOrderDocument): void {
+    this.confirmOrderToDelete = order;
+    this.confirmVisible = true;
+    this.cdr.detectChanges();
+  }
+
+  onKanbanCreate(event: { workCenterId: string; status?: Models.WorkOrderStatus }): void {
+    this.openCreatePanel(event.workCenterId, this.cursorDate || new Date());
   }
 
   private openEditPanel(order: Models.WorkOrderDocument): void {
@@ -1335,7 +1898,85 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
     const target = event.target as HTMLElement;
     if (!target.closest('.bar-ellipsis') && !target.closest('.ellipsis-dropdown')) {
       this.activeMenu = null;
-      this.cdr.detectChanges();
     }
+    if (!target.closest('.data-menu-container')) {
+      this.dataMenuOpen = false;
+    }
+    if (!target.closest('.collapsed-wc-cell') && !target.closest('.simplified-wc-menu')) {
+      this.activeCollapsedMenuWcId = null;
+    }
+    this.cdr.detectChanges();
+  }
+
+  /* ══════════════════════════════════════════════
+     COLLAPSIBLE WORK CENTERS & SIMPLIFIED MENU
+     ══════════════════════════════════════════════ */
+
+  toggleWorkCenterCollapse(): void {
+    this.isWorkCenterCollapsed = !this.isWorkCenterCollapsed;
+    this.activeCollapsedMenuWcId = null;
+    this.cdr.detectChanges();
+    setTimeout(() => {
+      this.ensureMinimumColumns();
+      this.renderChart();
+      this.scrollToDate(this.cursorDate || new Date());
+    }, 280);
+  }
+
+  toggleCollapsedMenu(wcId: string, event: MouseEvent): void {
+    event.stopPropagation();
+    if (this.activeCollapsedMenuWcId === wcId) {
+      this.activeCollapsedMenuWcId = null;
+    } else {
+      this.activeCollapsedMenuWcId = wcId;
+    }
+    this.cdr.detectChanges();
+  }
+
+  closeCollapsedMenu(event?: MouseEvent): void {
+    if (event) event.stopPropagation();
+    this.activeCollapsedMenuWcId = null;
+    this.cdr.detectChanges();
+  }
+
+  getWcInitials(name: string): string {
+    if (!name) return 'WC';
+    const words = name.trim().split(/\s+/);
+    if (words.length >= 2) {
+      return (words[0][0] + words[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  }
+
+  getWcColorClass(wcId: string): string {
+    const map: Record<string, string> = {
+      'wc-1': 'color-station-1',
+      'wc-2': 'color-station-2',
+      'wc-3': 'color-station-3',
+      'wc-4': 'color-station-4',
+      'wc-5': 'color-station-5',
+    };
+    return map[wcId] || 'color-station-default';
+  }
+
+  getStationOrderCount(wcId: string): number {
+    return this.store.workOrders().filter(o => o.data.workCenterId === wcId).length;
+  }
+
+  filterByStation(wcId: string): void {
+    const orders = this.store.workOrders().filter(o => o.data.workCenterId === wcId);
+    if (orders.length > 0) {
+      const dates = orders.map(o => new Date(o.data.startDate).getTime());
+      const minDate = new Date(Math.min(...dates));
+      this.cursorDate = minDate;
+      this.scrollToDate(minDate);
+      this.renderChart();
+    }
+  }
+
+  deleteStation(wc: Models.WorkCenterDocument): void {
+    this.store.deleteWorkCenter(wc.docId);
+    this.renderChart();
+    this.cdr.detectChanges();
   }
 }

@@ -22,6 +22,7 @@ import {
   WorkCenterDocument,
 } from '../../models/work-order.model';
 import { WorkOrderStore } from '../../store/work-order.store';
+import { ApiService } from '../../services/api';
 import { DateTime } from 'luxon';
 
 /* ── Exported event interfaces ── */
@@ -52,6 +53,7 @@ export class WorkOrderPanelComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   readonly activeOffcanvas = inject(NgbActiveOffcanvas);
   private readonly store = inject(WorkOrderStore);
+  private readonly api = inject(ApiService);
 
   @Input() mode: 'create' | 'edit' = 'create';
   @Input() workOrder: WorkOrderDocument | null = null;
@@ -59,14 +61,12 @@ export class WorkOrderPanelComponent implements OnInit {
   @Input() startDate = '';
   
   overlapError = '';
-  // Note: workCenters list might not be needed if not used in dropdown, usually overlap check is in service
-  // checking panel usage... it seems it doesn't use workCenters for display?
-  // Ah, the original panel didn't show a work center selector, it was inferred from the row clicked.
-  // But for Edit mode, maybe we want to move it? The design only showed Status, Name, Dates.
-  // Let's keep it simple as per original design.
 
-  /** Status options */
-  readonly statusOptions: { value: WorkOrderStatus; label: string; colorClass: string }[] = [
+  /** Work center options populated from API */
+  workCenterOptions: { id: string; name: string }[] = [];
+
+  /** Status options populated from API */
+  statusOptions: { value: WorkOrderStatus; label: string; colorClass: string }[] = [
     { value: 'open', label: 'Open', colorClass: 'status-open' },
     { value: 'in-progress', label: 'In Progress', colorClass: 'status-in-progress' },
     { value: 'complete', label: 'Complete', colorClass: 'status-complete' },
@@ -76,6 +76,7 @@ export class WorkOrderPanelComponent implements OnInit {
   /** Reactive form */
   form: FormGroup = this.fb.group({
     name: ['', Validators.required],
+    workCenterId: ['', Validators.required],
     status: ['open' as WorkOrderStatus, Validators.required],
     startDate: [null as NgbDateStruct | null, Validators.required],
     endDate: [null as NgbDateStruct | null, Validators.required],
@@ -86,6 +87,24 @@ export class WorkOrderPanelComponent implements OnInit {
   submitted = false;
 
   ngOnInit(): void {
+    // Populate Work Centers from API
+    this.api.getWorkCenters().subscribe(centers => {
+      if (centers && centers.length > 0) {
+        this.workCenterOptions = centers.map(c => ({ id: c.docId, name: c.data.name }));
+        if (!this.form.get('workCenterId')?.value) {
+          const defaultWcId = this.workCenterId || (this.workOrder?.data.workCenterId) || this.workCenterOptions[0].id;
+          this.form.patchValue({ workCenterId: defaultWcId });
+        }
+      }
+    });
+
+    // Populate Statuses from API
+    this.api.getStatuses().subscribe(statuses => {
+      if (statuses && statuses.length > 0) {
+        this.statusOptions = statuses;
+      }
+    });
+
     this.resetForm();
   }
 
@@ -119,6 +138,7 @@ export class WorkOrderPanelComponent implements OnInit {
       const e = this.isoToNgb(this.workOrder.data.endDate);
       this.form.patchValue({
         name: this.workOrder.data.name,
+        workCenterId: this.workOrder.data.workCenterId,
         status: this.workOrder.data.status,
         startDate: s,
         endDate: e,
@@ -128,6 +148,7 @@ export class WorkOrderPanelComponent implements OnInit {
       const e = this.isoToNgb(this.addDays(this.startDate, 7));
       this.form.patchValue({
         name: '',
+        workCenterId: this.workCenterId || (this.workCenterOptions[0]?.id ?? ''),
         status: 'open',
         startDate: s,
         endDate: e,
@@ -154,9 +175,9 @@ export class WorkOrderPanelComponent implements OnInit {
     const startIso = this.ngbToIso(val.startDate);
     const endIso = this.ngbToIso(val.endDate);
 
-    const wcId = this.mode === 'edit' && this.workOrder
+    const wcId = val.workCenterId || (this.mode === 'edit' && this.workOrder
       ? this.workOrder.data.workCenterId
-      : this.workCenterId;
+      : this.workCenterId);
 
     // Check overlap
     this.overlapError = '';

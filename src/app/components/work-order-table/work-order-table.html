@@ -1,0 +1,437 @@
+<div class="table-view-wrapper">
+  <!-- Toolbar -->
+  <div class="table-toolbar">
+    <div class="toolbar-left">
+      <!-- Search Input -->
+      <div class="search-box">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input
+          type="text"
+          placeholder="Filter by order name..."
+          [(ngModel)]="searchQuery"
+          class="search-input"
+        />
+      </div>
+
+      <!-- Status Filter -->
+      <div class="select-wrapper">
+        <label class="filter-label">Status:</label>
+        <select [(ngModel)]="selectedStatus" class="toolbar-select">
+          <option value="all">All Statuses</option>
+          <option value="open">Open</option>
+          <option value="in-progress">In Progress</option>
+          <option value="blocked">Blocked</option>
+          <option value="complete">Complete</option>
+        </select>
+      </div>
+
+      <!-- Station Filter -->
+      <div class="select-wrapper">
+        <label class="filter-label">Station:</label>
+        <select [(ngModel)]="selectedWorkCenterId" class="toolbar-select">
+          <option value="all">All Stations</option>
+          @for (wc of store.workCenters(); track wc.docId) {
+          <option [value]="wc.docId">{{ wc.data.name }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    <div class="toolbar-right">
+      <!-- Grouping Toggle -->
+      <button
+        type="button"
+        class="btn-toggle-group"
+        [class.active]="groupByWorkCenter"
+        (click)="groupByWorkCenter = !groupByWorkCenter"
+        title="Toggle Work Center grouping"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+        </svg>
+        <span>{{ groupByWorkCenter ? 'Grouped by Station' : 'Flat List' }}</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Conflict Alert Banner -->
+  @if (conflictMessage) {
+  <div class="table-conflict-alert" role="alert">
+    <div class="alert-icon">⚠️</div>
+    <div class="alert-text">{{ conflictMessage }}</div>
+    <button type="button" class="btn-close-alert" (click)="conflictMessage = null">✕</button>
+  </div>
+  }
+
+  <!-- Production Analytics & Charts Card -->
+  <div class="table-analytics-card">
+    <div class="analytics-card-header">
+      <div class="analytics-header-left">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
+        <span class="analytics-title">Capacity & Pipeline Analytics</span>
+      </div>
+      <button type="button" class="btn-toggle-analytics" (click)="showCharts = !showCharts">
+        {{ showCharts ? 'Hide Analytics' : 'Show Analytics' }}
+      </button>
+    </div>
+
+    @if (showCharts) {
+    <div class="analytics-content-grid">
+      <!-- Status Pipeline Breakdown (Segmented Progress Bar) -->
+      <div class="analytics-panel pipeline-panel">
+        <div class="panel-heading">Production Pipeline Distribution</div>
+        <div class="stacked-bar-container">
+          <div class="stacked-progress-bar">
+            @for (seg of statusBreakdown; track seg.status) {
+              @if (seg.count > 0) {
+              <div
+                class="progress-segment"
+                [style.width.%]="seg.percent"
+                [style.background-color]="seg.color"
+                [title]="seg.label + ': ' + seg.count + ' (' + seg.percent + '%)'"
+              >
+                @if (seg.percent >= 12) {
+                  <span class="segment-text">{{ seg.percent }}%</span>
+                }
+              </div>
+              }
+            }
+          </div>
+        </div>
+
+        <div class="pipeline-legend">
+          @for (seg of statusBreakdown; track seg.status) {
+          <div class="legend-item">
+            <span class="legend-color-dot" [style.background-color]="seg.color"></span>
+            <span class="legend-label">{{ seg.label }}:</span>
+            <strong class="legend-val">{{ seg.count }}</strong>
+            <span class="legend-pct">({{ seg.percent }}%)</span>
+          </div>
+          }
+        </div>
+      </div>
+
+      <!-- Station Capacity Utilization Chart -->
+      <div class="analytics-panel capacity-panel">
+        <div class="panel-heading">Station Capacity Utilization</div>
+        <div class="capacity-bars-grid">
+          @for (station of stationUtilization; track station.id) {
+          <div class="capacity-item">
+            <div class="capacity-meta">
+              <span class="station-name-label" [title]="station.name">{{ station.name }}</span>
+              <span class="station-stats">{{ station.orderCount }} orders · {{ station.totalDays }}d</span>
+            </div>
+            <div class="capacity-bar-track">
+              <div
+                class="capacity-bar-fill"
+                [style.width.%]="station.percent"
+                [class.high-load]="station.percent >= 75"
+              ></div>
+            </div>
+          </div>
+          }
+        </div>
+      </div>
+
+      <!-- Quick Executive Summary Cards -->
+      <div class="analytics-panel summary-cards-panel">
+        <div class="panel-heading">Executive Summary</div>
+        <div class="summary-cards-grid">
+          <div class="summary-card">
+            <span class="card-caption">Total Orders</span>
+            <span class="card-number">{{ totalOrders }}</span>
+          </div>
+          <div class="summary-card">
+            <span class="card-caption">Total Days Booked</span>
+            <span class="card-number color-indigo">{{ totalScheduledDays }}d</span>
+          </div>
+          <div class="summary-card card-full">
+            <span class="card-caption">Highest Workload Station</span>
+            <span class="card-text-highlight">{{ busiestStation }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    }
+  </div>
+
+  <!-- Grouped View -->
+  @if (groupByWorkCenter) {
+  <div class="grouped-tables-container">
+    @for (wc of store.workCenters(); track wc.docId) {
+    <div class="work-center-group">
+      <!-- Group Header Accordion -->
+      <div class="group-header" (click)="toggleGroup(wc.docId)">
+        <div class="group-header-left">
+          <span class="accordion-arrow" [class.collapsed]="isGroupCollapsed(wc.docId)">▼</span>
+          <span class="station-icon">🏭</span>
+          <h3 class="station-title">{{ wc.data.name }}</h3>
+          <span class="station-count">{{ getOrdersForCenter(wc.docId).length }} orders</span>
+        </div>
+
+        @if (auth.isAdmin()) {
+        <button
+          type="button"
+          class="btn-group-add"
+          (click)="onAddForCenter(wc.docId); $event.stopPropagation()"
+          title="Add order for {{ wc.data.name }}"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>Add Order</span>
+        </button>
+        }
+      </div>
+
+      <!-- Group Content Table -->
+      @if (!isGroupCollapsed(wc.docId)) {
+      <div class="table-responsive">
+        <table class="erp-data-table">
+          <thead>
+            <tr>
+              <th class="col-name">Order Name</th>
+              <th class="col-status">Status</th>
+              <th class="col-date">Start Date</th>
+              <th class="col-date">End Date</th>
+              <th class="col-duration">Duration</th>
+              <th class="col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (order of getOrdersForCenter(wc.docId); track order.docId) {
+            <tr class="table-row">
+              <!-- Name -->
+              <td class="col-name">
+                <span class="order-name-text" (click)="onEdit(order)" title="Click to view full details">
+                  {{ order.data.name }}
+                </span>
+              </td>
+
+              <!-- Status Pill Dropdown -->
+              <td class="col-status">
+                @if (auth.isAdmin()) {
+                <select
+                  class="status-pill-select status-{{ order.data.status }}"
+                  [ngModel]="order.data.status"
+                  (ngModelChange)="onStatusChange(order, $event)"
+                >
+                  @for (st of statusOptions; track st.value) {
+                  <option [value]="st.value">{{ st.label }}</option>
+                  }
+                </select>
+                } @else {
+                <span class="status-static-pill status-{{ order.data.status }}">
+                  {{ order.data.status | uppercase }}
+                </span>
+                }
+              </td>
+
+              <!-- Start Date Picker -->
+              <td class="col-date">
+                @if (auth.isAdmin()) {
+                <input
+                  type="date"
+                  class="date-cell-input"
+                  [ngModel]="order.data.startDate"
+                  (ngModelChange)="onDateChange(order, 'startDate', $event)"
+                />
+                } @else {
+                <span class="date-static-text">{{ order.data.startDate }}</span>
+                }
+              </td>
+
+              <!-- End Date Picker -->
+              <td class="col-date">
+                @if (auth.isAdmin()) {
+                <input
+                  type="date"
+                  class="date-cell-input"
+                  [ngModel]="order.data.endDate"
+                  (ngModelChange)="onDateChange(order, 'endDate', $event)"
+                />
+                } @else {
+                <span class="date-static-text">{{ order.data.endDate }}</span>
+                }
+              </td>
+
+              <!-- Duration -->
+              <td class="col-duration">
+                <span class="duration-badge">
+                  {{ getDurationDays(order.data.startDate, order.data.endDate) }} days
+                </span>
+              </td>
+
+              <!-- Actions -->
+              <td class="col-actions">
+                @if (auth.isAdmin()) {
+                <div class="row-actions">
+                  <button type="button" class="btn-row-action" (click)="onEdit(order)" title="Edit Order">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                  </button>
+                  <button type="button" class="btn-row-action btn-row-delete" (click)="onDelete(order)" title="Delete Order">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                  </button>
+                </div>
+                }
+              </td>
+            </tr>
+            } @empty {
+            <tr>
+              <td colspan="6" class="empty-table-cell">
+                No orders assigned to {{ wc.data.name }}.
+              </td>
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      }
+    </div>
+    }
+  </div>
+  } @else {
+  <!-- Flat Table View -->
+  <div class="table-responsive flat-table-container">
+    <table class="erp-data-table">
+      <thead>
+        <tr>
+          <th class="col-name">Order Name</th>
+          <th class="col-station">Work Center Station</th>
+          <th class="col-status">Status</th>
+          <th class="col-date">Start Date</th>
+          <th class="col-date">End Date</th>
+          <th class="col-duration">Duration</th>
+          <th class="col-actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (order of filteredOrders; track order.docId) {
+        <tr class="table-row">
+          <!-- Name -->
+          <td class="col-name">
+            <span class="order-name-text" (click)="onEdit(order)">
+              {{ order.data.name }}
+            </span>
+          </td>
+
+          <!-- Work Center Station Select -->
+          <td class="col-station">
+            @if (auth.isAdmin()) {
+            <select
+              class="wc-table-select"
+              [ngModel]="order.data.workCenterId"
+              (ngModelChange)="onWorkCenterChange(order, $event)"
+            >
+              @for (wc of store.workCenters(); track wc.docId) {
+              <option [value]="wc.docId">{{ wc.data.name }}</option>
+              }
+            </select>
+            } @else {
+            <span>{{ getWorkCenterName(order.data.workCenterId) }}</span>
+            }
+          </td>
+
+          <!-- Status -->
+          <td class="col-status">
+            @if (auth.isAdmin()) {
+            <select
+              class="status-pill-select status-{{ order.data.status }}"
+              [ngModel]="order.data.status"
+              (ngModelChange)="onStatusChange(order, $event)"
+            >
+              @for (st of statusOptions; track st.value) {
+              <option [value]="st.value">{{ st.label }}</option>
+              }
+            </select>
+            } @else {
+            <span class="status-static-pill status-{{ order.data.status }}">
+              {{ order.data.status | uppercase }}
+            </span>
+            }
+          </td>
+
+          <!-- Start Date -->
+          <td class="col-date">
+            @if (auth.isAdmin()) {
+            <input
+              type="date"
+              class="date-cell-input"
+              [ngModel]="order.data.startDate"
+              (ngModelChange)="onDateChange(order, 'startDate', $event)"
+            />
+            } @else {
+            <span class="date-static-text">{{ order.data.startDate }}</span>
+            }
+          </td>
+
+          <!-- End Date -->
+          <td class="col-date">
+            @if (auth.isAdmin()) {
+            <input
+              type="date"
+              class="date-cell-input"
+              [ngModel]="order.data.endDate"
+              (ngModelChange)="onDateChange(order, 'endDate', $event)"
+            />
+            } @else {
+            <span class="date-static-text">{{ order.data.endDate }}</span>
+            }
+          </td>
+
+          <!-- Duration -->
+          <td class="col-duration">
+            <span class="duration-badge">
+              {{ getDurationDays(order.data.startDate, order.data.endDate) }} days
+            </span>
+          </td>
+
+          <!-- Actions -->
+          <td class="col-actions">
+            @if (auth.isAdmin()) {
+            <div class="row-actions">
+              <button type="button" class="btn-row-action" (click)="onEdit(order)" title="Edit Order">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+              </button>
+              <button type="button" class="btn-row-action btn-row-delete" (click)="onDelete(order)" title="Delete Order">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+              </button>
+            </div>
+            }
+          </td>
+        </tr>
+        } @empty {
+        <tr>
+          <td colspan="7" class="empty-table-cell">
+            No work orders match the current filters.
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  }
+</div>

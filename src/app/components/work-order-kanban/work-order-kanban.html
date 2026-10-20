@@ -1,0 +1,345 @@
+<div class="kanban-wrapper">
+  <!-- Top Controls & Filters -->
+  <div class="kanban-toolbar">
+    <div class="filter-group">
+      <span class="filter-label">Filter Station:</span>
+      <div class="wc-chips-container">
+        <button
+          type="button"
+          class="wc-chip"
+          [class.active]="selectedWorkCenterId === 'all'"
+          (click)="selectedWorkCenterId = 'all'"
+        >
+          All Stations
+          <span class="chip-count">{{ store.workOrders().length }}</span>
+        </button>
+        @for (wc of store.workCenters(); track wc.docId) {
+        <button
+          type="button"
+          class="wc-chip"
+          [class.active]="selectedWorkCenterId === wc.docId"
+          (click)="selectedWorkCenterId = wc.docId"
+        >
+          {{ wc.data.name }}
+          <span class="chip-count">{{ store.getOrdersForWorkCenter(wc.docId).length }}</span>
+        </button>
+        }
+      </div>
+    </div>
+
+    <div class="search-box">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      <input
+        type="text"
+        placeholder="Search work orders..."
+        [(ngModel)]="searchQuery"
+        class="search-input"
+      />
+    </div>
+  </div>
+
+  <!-- Conflict Notification Alert -->
+  @if (conflictMessage) {
+  <div class="kanban-conflict-alert" role="alert">
+    <div class="alert-icon">⚠️</div>
+    <div class="alert-text">{{ conflictMessage }}</div>
+    <button type="button" class="btn-close-alert" (click)="conflictMessage = null">✕</button>
+  </div>
+  }
+
+  <!-- Analytics & Interactive Charts Section -->
+  <div class="kanban-analytics-card">
+    <div class="analytics-card-header">
+      <div class="analytics-header-left">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
+        <span class="analytics-title">Shop Floor Production Analytics</span>
+      </div>
+      <button type="button" class="btn-toggle-analytics" (click)="showCharts = !showCharts">
+        {{ showCharts ? 'Hide Analytics' : 'Show Analytics' }}
+      </button>
+    </div>
+
+    @if (showCharts) {
+    <div class="analytics-content-grid">
+      <!-- Donut Chart: Stage Distribution -->
+      <div class="analytics-panel chart-panel">
+        <div class="panel-heading">Work Order Stage Distribution</div>
+        <div class="donut-chart-container">
+          <svg viewBox="0 0 100 100" class="donut-svg">
+            <circle cx="50" cy="50" r="40" fill="transparent" stroke="var(--color-border-subtle, #f1f5f9)" stroke-width="12"></circle>
+            @for (seg of donutSegments; track seg.status) {
+              <circle
+                cx="50"
+                cy="50"
+                r="40"
+                fill="transparent"
+                [attr.stroke]="seg.color"
+                stroke-width="12"
+                [attr.stroke-dasharray]="seg.strokeDasharray"
+                [attr.stroke-dashoffset]="seg.strokeDashoffset"
+                transform="rotate(-90 50 50)"
+                class="donut-segment"
+              ></circle>
+            }
+          </svg>
+          <div class="donut-center-label">
+            <span class="center-value">{{ totalOrdersCount }}</span>
+            <span class="center-sub">Orders</span>
+          </div>
+        </div>
+
+        <!-- Donut Legend -->
+        <div class="donut-legend">
+          @for (seg of donutSegments; track seg.status) {
+          <div class="legend-row">
+            <span class="legend-dot" [style.background-color]="seg.color"></span>
+            <span class="legend-label">{{ seg.label }}</span>
+            <span class="legend-count">{{ seg.count }}</span>
+            <span class="legend-percent">({{ seg.percent }}%)</span>
+          </div>
+          }
+        </div>
+      </div>
+
+      <!-- Station Workload Chart -->
+      <div class="analytics-panel workload-panel">
+        <div class="panel-heading">Station Workload & Allocated Days</div>
+        <div class="workload-bars-list">
+          @for (load of workCenterLoads; track load.id) {
+          <div class="workload-row">
+            <div class="workload-info">
+              <span class="workload-wc-name" [title]="load.name">{{ load.name }}</span>
+              <span class="workload-metrics">{{ load.count }} orders · {{ load.days }}d</span>
+            </div>
+            <div class="workload-bar-track">
+              <div
+                class="workload-bar-fill"
+                [style.width.%]="load.percent"
+                [class.heavy-load]="load.percent >= 80"
+              ></div>
+            </div>
+          </div>
+          }
+        </div>
+      </div>
+
+      <!-- KPI Summary Metrics -->
+      <div class="analytics-panel kpi-panel">
+        <div class="panel-heading">Efficiency Indicators</div>
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <span class="kpi-label">Completion Rate</span>
+            <span class="kpi-value value-green">{{ completionRate }}%</span>
+            <span class="kpi-sub">{{ completedOrdersCount }} of {{ totalOrdersCount }} done</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">In Production</span>
+            <span class="kpi-value value-blue">{{ inProgressOrdersCount }}</span>
+            <span class="kpi-sub">Active on floor</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Blocked / At Risk</span>
+            <span class="kpi-value" [class.value-red]="blockedOrdersCount > 0" [class.value-muted]="blockedOrdersCount === 0">
+              {{ blockedOrdersCount }}
+            </span>
+            <span class="kpi-sub">{{ blockedOrdersCount > 0 ? 'Requires attention' : 'No bottlenecks' }}</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Total Days Booked</span>
+            <span class="kpi-value value-purple">{{ totalScheduledDays }}d</span>
+            <span class="kpi-sub">Scheduled timeline</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    }
+  </div>
+
+  <!-- Kanban Board Columns -->
+  <div class="kanban-board">
+    @for (col of columns; track col.status) {
+    <div
+      class="kanban-column"
+      [class.drag-over]="dragOverColumn === col.status"
+      (dragover)="onDragOver($event, col.status)"
+      (dragleave)="onDragLeave($event, col.status)"
+      (drop)="onDrop($event, col.status)"
+    >
+      <!-- Column Header -->
+      <div class="column-header">
+        <div class="column-title-box">
+          <span class="column-indicator" [class]="col.badgeClass"></span>
+          <h3 class="column-title">{{ col.title }}</h3>
+          <span class="column-count">{{ getOrdersByStatus(col.status).length }}</span>
+        </div>
+        @if (auth.isAdmin()) {
+        <button
+          type="button"
+          class="btn-column-add"
+          (click)="onAddOrder(col.status)"
+          [title]="'Add order in ' + col.title"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
+        }
+      </div>
+
+      <!-- Column Card List -->
+      <div class="column-cards">
+        @for (order of getOrdersByStatus(col.status); track order.docId) {
+        <div
+          class="kanban-card"
+          [class.dragging]="draggedOrderId === order.docId"
+          [draggable]="auth.isAdmin()"
+          (dragstart)="onDragStart($event, order)"
+          (dragend)="onDragEnd()"
+        >
+          <!-- Card Header: Work Center Badge & Actions -->
+          <div class="card-top">
+            <div class="station-select-wrapper">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+              </svg>
+              @if (auth.isAdmin()) {
+              <select
+                class="wc-select"
+                [ngModel]="order.data.workCenterId"
+                (ngModelChange)="onWorkCenterChange(order, $event)"
+                title="Change Work Center"
+              >
+                @for (wc of store.workCenters(); track wc.docId) {
+                <option [value]="wc.docId">{{ wc.data.name }}</option>
+                }
+              </select>
+              } @else {
+              <span class="wc-static-label">{{ getWorkCenterName(order.data.workCenterId) }}</span>
+              }
+            </div>
+
+            @if (auth.isAdmin()) {
+            <div class="card-actions">
+              <button
+                type="button"
+                class="btn-card-action"
+                (click)="onEditOrder(order)"
+                title="Edit full order details"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+              </button>
+              <button
+                type="button"
+                class="btn-card-action btn-card-delete"
+                (click)="onDeleteOrder(order)"
+                title="Delete order"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+              </button>
+            </div>
+            }
+          </div>
+
+          <!-- Order Title -->
+          <h4 class="card-title">{{ order.data.name }}</h4>
+
+          <!-- Date & Duration Info / Editor -->
+          @if (editingDateOrderId === order.docId) {
+          <div class="card-date-editor">
+            <div class="date-inputs-row">
+              <div class="date-input-group">
+                <span class="date-label">Start:</span>
+                <input
+                  type="date"
+                  class="date-input"
+                  [(ngModel)]="editStartDate"
+                />
+              </div>
+              <div class="date-input-group">
+                <span class="date-label">End:</span>
+                <input
+                  type="date"
+                  class="date-input"
+                  [(ngModel)]="editEndDate"
+                />
+              </div>
+            </div>
+            <div class="date-edit-actions">
+              <button type="button" class="btn-date-save" (click)="saveEditDate(order)">Save</button>
+              <button type="button" class="btn-date-cancel" (click)="cancelEditDate()">Cancel</button>
+            </div>
+          </div>
+          } @else {
+          <div class="card-dates-bar">
+            <div class="dates-display">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              <span class="date-text">
+                {{ formatDate(order.data.startDate) }} – {{ formatDate(order.data.endDate) }}
+              </span>
+              <span class="duration-badge">
+                {{ getDurationDays(order.data.startDate, order.data.endDate) }}d
+              </span>
+            </div>
+
+            @if (auth.isAdmin()) {
+            <div class="date-shift-controls">
+              <button
+                type="button"
+                class="btn-shift"
+                (click)="shiftOrderDays(order, -1)"
+                title="Shift -1 day"
+              >
+                -1d
+              </button>
+              <button
+                type="button"
+                class="btn-shift"
+                (click)="shiftOrderDays(order, 1)"
+                title="Shift +1 day"
+              >
+                +1d
+              </button>
+              <button
+                type="button"
+                class="btn-shift btn-date-edit-trigger"
+                (click)="startEditDate(order)"
+                title="Edit dates manually"
+              >
+                ✎
+              </button>
+            </div>
+            }
+          </div>
+          }
+        </div>
+        } @empty {
+        <div class="empty-column-state">
+          <div class="empty-icon">📂</div>
+          <div class="empty-text">No orders in this stage</div>
+        </div>
+        }
+      </div>
+    </div>
+    }
+  </div>
+</div>

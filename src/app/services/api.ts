@@ -1,8 +1,9 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Injectable, inject, computed, signal, effect } from '@angular/core';
+import { HttpClient, httpResource } from '@angular/common/http';
+import { rxResource } from '@angular/core/rxjs-interop';
 import { Observable, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
-import { TimeScale, WorkOrderDocument, WorkCenterDocument } from '../models/work-order.model';
+import { catchError, tap } from 'rxjs/operators';
+import { TimeScale, WorkOrderDocument, WorkCenterDocument, WorkOrderStatus } from '../models/work-order.model';
 
 export interface AppSettings {
   timeScale: TimeScale;
@@ -13,26 +14,216 @@ export interface AppSettings {
   providedIn: 'root'
 })
 export class ApiService {
-  private http = inject(HttpClient);
-  private baseUrl = 'http://localhost:3000/api';
+  private readonly http = inject(HttpClient);
+  private readonly SETTINGS_STORAGE_KEY = 'naologic_erp_settings';
 
+  private readonly baseUrl = (typeof window !== 'undefined' && window.location.hostname && window.location.hostname !== 'localhost')
+    ? '/api'
+    : 'http://localhost:3000/api';
+
+  /* ── Session Storage Helpers ── */
+  loadSettingsFromSession(): AppSettings {
+    const defaultSettings: AppSettings = { timeScale: 'Day', theme: 'light' };
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      try {
+        const storedTheme = window.sessionStorage.getItem('theme') as 'light' | 'dark' | null;
+        const stored = window.sessionStorage.getItem(this.SETTINGS_STORAGE_KEY);
+        let parsed = {};
+        if (stored) {
+          parsed = JSON.parse(stored);
+        }
+        const combined = { ...defaultSettings, ...parsed };
+        if (storedTheme === 'light' || storedTheme === 'dark') {
+          combined.theme = storedTheme;
+        }
+        return combined;
+      } catch (err) {
+        console.warn('ApiService: Error loading settings from sessionStorage', err);
+      }
+    }
+    return defaultSettings;
+  }
+
+  saveSettingsToSession(settings: AppSettings): void {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      try {
+        window.sessionStorage.setItem(this.SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+        if (settings.theme) {
+          window.sessionStorage.setItem('theme', settings.theme);
+        }
+      } catch (err) {
+        console.warn('ApiService: Error saving settings to sessionStorage', err);
+      }
+    }
+  }
+
+  clearSessionSettings(): void {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      try {
+        window.sessionStorage.removeItem(this.SETTINGS_STORAGE_KEY);
+        window.sessionStorage.removeItem('theme');
+      } catch (err) {
+        console.warn('ApiService: Error clearing settings from sessionStorage', err);
+      }
+    }
+    const defaultSettings: AppSettings = { timeScale: 'Day', theme: 'light' };
+    this._settingsState.set(defaultSettings);
+    this.applyTheme(defaultSettings.theme);
+  }
+
+  /* ── Theme DOM Application ── */
+  applyTheme(theme: 'light' | 'dark'): void {
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-theme', theme);
+      if (theme === 'dark') {
+        document.body.classList.add('dark-theme');
+      } else {
+        document.body.classList.remove('dark-theme');
+      }
+    }
+  }
+
+  /* ── Reactive State & Resources ── */
+  private readonly _settingsState = signal<AppSettings>(this.loadSettingsFromSession());
+
+  /* ── Signal-based HTTP Resources (Angular 19/20/21 httpResource) ── */
+  readonly settingsResource = httpResource<AppSettings>(() => `${this.baseUrl}/settings`, {
+    defaultValue: this.loadSettingsFromSession()
+  });
+
+  readonly ordersResource = httpResource<WorkOrderDocument[]>(() => `${this.baseUrl}/orders`, {
+    defaultValue: []
+  });
+
+  readonly centersResource = httpResource<WorkCenterDocument[]>(() => `${this.baseUrl}/work-centers`, {
+    defaultValue: []
+  });
+
+  /* ── Reactive Resource using rxResource ── */
+  readonly liveOrdersRxResource = rxResource({
+    defaultValue: [] as WorkOrderDocument[],
+    stream: () => this.http.get<WorkOrderDocument[]>(`${this.baseUrl}/orders`).pipe(
+      catchError(() => of([] as WorkOrderDocument[]))
+    )
+  });
+
+  /* ── Signal Getters ── */
+  readonly settingsSignal = computed<AppSettings>(() => {
+    const resourceVal = this.settingsResource.value();
+    const stateVal = this._settingsState();
+    return resourceVal ? { ...stateVal, ...resourceVal } : stateVal;
+  });
+
+  readonly currentTheme = computed<'light' | 'dark'>(() => {
+    return this.settingsSignal()?.theme ?? 'light';
+  });
+
+  readonly ordersSignal = this.ordersResource.value;
+  readonly centersSignal = this.centersResource.value;
+  readonly isLoadingSignal = computed(
+    () => this.ordersResource.isLoading() || this.centersResource.isLoading()
+  );
+
+  constructor() {
+    // Apply initial theme immediately to prevent light/dark flicker
+    const initial = this.loadSettingsFromSession();
+    this.applyTheme(initial.theme);
+
+    // Reactively ensure DOM attribute and class update on any theme change
+    effect(() => {
+      const theme = this.currentTheme();
+      this.applyTheme(theme);
+    });
+  }
+
+  /* ── Reload Trigger Methods ── */
+  reloadAll(): void {
+    this.settingsResource.reload();
+    this.ordersResource.reload();
+    this.centersResource.reload();
+    this.liveOrdersRxResource.reload();
+  }
+
+  reloadOrders(): void {
+    this.ordersResource.reload();
+    this.liveOrdersRxResource.reload();
+  }
+
+  reloadCenters(): void {
+    this.centersResource.reload();
+  }
+
+  /* ── CRUD Operations with Automatic Resource Synchronization ── */
+
+  // Settings
   getSettings(): Observable<AppSettings> {
     return this.http.get<AppSettings>(`${this.baseUrl}/settings`).pipe(
+      tap(settings => {
+        if (settings) {
+          this._settingsState.set(settings);
+          this.saveSettingsToSession(settings);
+          if (settings.theme) {
+            this.applyTheme(settings.theme);
+          }
+        }
+      }),
       catchError(err => {
-        console.error('Failed to fetch settings from API, falling back to default', err);
-        return of({ timeScale: 'Day', theme: 'light' } as AppSettings);
+        console.error('Failed to fetch settings from API, falling back to session/default', err);
+        return of(this.loadSettingsFromSession());
       })
     );
   }
 
   updateSettings(settings: Partial<AppSettings>): Observable<AppSettings> {
+    const current = this.loadSettingsFromSession();
+    const updated: AppSettings = { ...current, ...settings };
+    this._settingsState.set(updated);
+    this.saveSettingsToSession(updated);
+    if (updated.theme) {
+      this.applyTheme(updated.theme);
+    }
+
     return this.http.post<AppSettings>(`${this.baseUrl}/settings`, settings).pipe(
+      tap(() => this.settingsResource.reload()),
       catchError(err => {
         console.error('Failed to save settings to API', err);
         throw err;
       })
     );
   }
+
+  setTheme(theme: 'light' | 'dark'): Observable<AppSettings> {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      try {
+        window.sessionStorage.setItem('theme', theme);
+      } catch (err) {}
+    }
+    return this.updateSettings({ theme });
+  }
+
+  toggleTheme(): Observable<AppSettings> {
+    const nextTheme: 'light' | 'dark' = this.currentTheme() === 'dark' ? 'light' : 'dark';
+    return this.setTheme(nextTheme);
+  }
+
+  // Lookups & Dropdowns
+  getStatuses(): Observable<{ value: WorkOrderStatus; label: string; colorClass: string }[]> {
+    return this.http.get<{ value: WorkOrderStatus; label: string; colorClass: string }[]>(`${this.baseUrl}/statuses`).pipe(
+      catchError(() => of([
+        { value: 'open' as WorkOrderStatus, label: 'Open', colorClass: 'status-open' },
+        { value: 'in-progress' as WorkOrderStatus, label: 'In Progress', colorClass: 'status-in-progress' },
+        { value: 'complete' as WorkOrderStatus, label: 'Complete', colorClass: 'status-complete' },
+        { value: 'blocked' as WorkOrderStatus, label: 'Blocked', colorClass: 'status-blocked' },
+      ]))
+    );
+  }
+
+  getTimescales(): Observable<TimeScale[]> {
+    return this.http.get<TimeScale[]>(`${this.baseUrl}/timescales`).pipe(
+      catchError(() => of(['Day', 'Week', 'Month'] as TimeScale[]))
+    );
+  }
+
   // Work Orders
   getWorkOrders(): Observable<WorkOrderDocument[]> {
     return this.http.get<WorkOrderDocument[]>(`${this.baseUrl}/orders`).pipe(
@@ -44,15 +235,21 @@ export class ApiService {
   }
 
   createWorkOrder(order: WorkOrderDocument): Observable<WorkOrderDocument> {
-    return this.http.post<WorkOrderDocument>(`${this.baseUrl}/orders`, order);
+    return this.http.post<WorkOrderDocument>(`${this.baseUrl}/orders`, order).pipe(
+      tap(() => this.reloadOrders())
+    );
   }
 
   updateWorkOrder(docId: string, data: Partial<WorkOrderDocument['data']>): Observable<void> {
-    return this.http.put<void>(`${this.baseUrl}/orders/${docId}`, data);
+    return this.http.put<void>(`${this.baseUrl}/orders/${docId}`, data).pipe(
+      tap(() => this.reloadOrders())
+    );
   }
 
   deleteWorkOrder(docId: string): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/orders/${docId}`);
+    return this.http.delete<void>(`${this.baseUrl}/orders/${docId}`).pipe(
+      tap(() => this.reloadOrders())
+    );
   }
 
   // Work Centers
@@ -65,7 +262,37 @@ export class ApiService {
     );
   }
 
+  createWorkCenter(center: WorkCenterDocument): Observable<WorkCenterDocument> {
+    return this.http.post<WorkCenterDocument>(`${this.baseUrl}/work-centers`, center).pipe(
+      tap(() => this.reloadCenters())
+    );
+  }
+
   updateWorkCenter(docId: string, data: Partial<WorkCenterDocument['data']>): Observable<void> {
-    return this.http.put<void>(`${this.baseUrl}/work-centers/${docId}`, data);
+    return this.http.put<void>(`${this.baseUrl}/work-centers/${docId}`, data).pipe(
+      tap(() => this.reloadCenters())
+    );
+  }
+
+  deleteWorkCenter(docId: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/work-centers/${docId}`).pipe(
+      tap(() => this.reloadCenters())
+    );
+  }
+
+  // Batch Generation & Reset
+  generateOrders(): Observable<WorkOrderDocument[]> {
+    return this.http.post<WorkOrderDocument[]>(`${this.baseUrl}/orders/generate`, {}).pipe(
+      tap(() => this.reloadOrders())
+    );
+  }
+
+  resetData(): Observable<{ workCenters: WorkCenterDocument[]; workOrders: WorkOrderDocument[]; settings: AppSettings }> {
+    return this.http.post<{ workCenters: WorkCenterDocument[]; workOrders: WorkOrderDocument[]; settings: AppSettings }>(`${this.baseUrl}/reset`, {}).pipe(
+      tap(() => {
+        this.clearSessionSettings();
+        this.reloadAll();
+      })
+    );
   }
 }

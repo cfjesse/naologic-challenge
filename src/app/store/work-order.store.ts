@@ -1,11 +1,10 @@
 import { signalStore, withState, withMethods, withHooks, patchState, withComputed } from '@ngrx/signals';
 import { effect, inject, computed } from '@angular/core';
-import { WorkOrderDocument, WorkCenterDocument, TimeScale, WorkOrderStatus } from '../models/work-order.model';
+import { WorkOrderDocument, WorkCenterDocument, WorkOrderStatus } from '../models/work-order.model';
 import { v4 as uuidv4 } from 'uuid';
 import { ApiService } from '../services/api';
-import { tap } from 'rxjs/operators';
 
-export type DataSource = 'local' | 'server';
+export type DataSource = 'server' | 'local';
 
 interface WorkOrderState {
   workOrders: WorkOrderDocument[];
@@ -15,13 +14,10 @@ interface WorkOrderState {
   statusFilter: WorkOrderStatus | 'all';
 }
 
-const STORAGE_KEY = 'naologic_work_orders_v4';
-const WC_STORAGE_KEY = 'naologic_work_centers_v4';
-
 const initialState: WorkOrderState = {
   workOrders: [],
   workCenters: [],
-  dataSource: 'local',
+  dataSource: 'server',
   isLoading: false,
   statusFilter: 'all',
 };
@@ -49,44 +45,50 @@ export const WorkOrderStore = signalStore(
       },
       setDataSource(dataSource: DataSource): void {
         patchState(store, { dataSource });
-        
-        if (dataSource === 'server') {
-          patchState(store, { isLoading: true });
-          
-          // Fetch Orders
-          api.getWorkOrders().pipe(
-            tap(() => patchState(store, { isLoading: false }))
-          ).subscribe(orders => {
-            patchState(store, { workOrders: orders });
-          });
-
-          // Fetch Centers
-          api.getWorkCenters().subscribe(centers => {
-            patchState(store, { workCenters: centers });
-          });
-        } else {
-          // Load Orders from LS
-          const storedOrders = localStorage.getItem(STORAGE_KEY);
-          if (storedOrders) {
-            try {
-              const parsed = JSON.parse(storedOrders);
-              if (Array.isArray(parsed)) {
-                patchState(store, { workOrders: parsed });
-              }
-            } catch {}
+        this.refreshData();
+      },
+      refreshData(): void {
+        patchState(store, { isLoading: true });
+        api.reloadAll();
+        api.getWorkCenters().subscribe({
+          next: (centers) => patchState(store, { workCenters: centers }),
+          error: (err) => console.error('API Error loading centers:', err)
+        });
+        api.getWorkOrders().subscribe({
+          next: (orders) => patchState(store, { workOrders: orders, isLoading: false }),
+          error: (err) => {
+            console.error('API Error loading orders:', err);
+            patchState(store, { isLoading: false });
           }
-
-          // Load Centers from LS
-          const storedWC = localStorage.getItem(WC_STORAGE_KEY);
-          if (storedWC) {
-            try {
-              const parsed = JSON.parse(storedWC);
-              if (Array.isArray(parsed)) {
-                patchState(store, { workCenters: parsed });
-              }
-            } catch {}
+        });
+      },
+      generateNewData(): void {
+        patchState(store, { isLoading: true });
+        api.generateOrders().subscribe({
+          next: (orders) => {
+            patchState(store, { workOrders: orders, isLoading: false });
+          },
+          error: (err) => {
+            console.error('API Error generating orders:', err);
+            patchState(store, { isLoading: false });
           }
-        }
+        });
+      },
+      resetToDefaults(): void {
+        patchState(store, { isLoading: true });
+        api.resetData().subscribe({
+          next: (data) => {
+            patchState(store, {
+              workCenters: data.workCenters,
+              workOrders: data.workOrders,
+              isLoading: false,
+            });
+          },
+          error: (err) => {
+            console.error('API Error resetting data:', err);
+            patchState(store, { isLoading: false });
+          }
+        });
       },
       setWorkOrders(workOrders: WorkOrderDocument[]): void {
         patchState(store, { workOrders });
@@ -105,9 +107,9 @@ export const WorkOrderStore = signalStore(
           workOrders: [...state.workOrders, newOrder],
         }));
 
-        if (store.dataSource() === 'server') {
-          api.createWorkOrder(newOrder).subscribe();
-        }
+        api.createWorkOrder(newOrder).subscribe({
+          error: (err) => console.error('API Error creating work order:', err)
+        });
       },
       updateWorkOrder(docId: string, data: WorkOrderDocument['data']): void {
         patchState(store, (state) => ({
@@ -116,18 +118,34 @@ export const WorkOrderStore = signalStore(
           ),
         }));
 
-        if (store.dataSource() === 'server') {
-          api.updateWorkOrder(docId, data).subscribe();
-        }
+        api.updateWorkOrder(docId, data).subscribe({
+          error: (err) => console.error('API Error updating work order:', err)
+        });
       },
       deleteWorkOrder(docId: string): void {
         patchState(store, (state) => ({
           workOrders: state.workOrders.filter((o) => o.docId !== docId),
         }));
 
-        if (store.dataSource() === 'server') {
-          api.deleteWorkOrder(docId).subscribe();
-        }
+        api.deleteWorkOrder(docId).subscribe({
+          error: (err) => console.error('API Error deleting work order:', err)
+        });
+      },
+      addWorkCenter(name: string): WorkCenterDocument {
+        const trimmed = name.trim();
+        const newCenter: WorkCenterDocument = {
+          docId: `wc-${uuidv4().substring(0, 8)}`,
+          docType: 'workCenter',
+          data: { name: trimmed || 'New Work Center', isDefault: false },
+        };
+        patchState(store, (state) => ({
+          workCenters: [...state.workCenters, newCenter],
+        }));
+
+        api.createWorkCenter(newCenter).subscribe({
+          error: (err) => console.error('API Error creating work center:', err)
+        });
+        return newCenter;
       },
       updateWorkCenter(docId: string, name: string): void {
         patchState(store, (state) => ({
@@ -136,9 +154,19 @@ export const WorkOrderStore = signalStore(
           ),
         }));
 
-        if (store.dataSource() === 'server') {
-          api.updateWorkCenter(docId, { name }).subscribe();
-        }
+        api.updateWorkCenter(docId, { name }).subscribe({
+          error: (err) => console.error('API Error updating work center:', err)
+        });
+      },
+      deleteWorkCenter(docId: string): void {
+        patchState(store, (state) => ({
+          workCenters: state.workCenters.filter((wc) => wc.docId !== docId),
+          workOrders: state.workOrders.filter((wo) => wo.data.workCenterId !== docId),
+        }));
+
+        api.deleteWorkCenter(docId).subscribe({
+          error: (err) => console.error('API Error deleting work center:', err)
+        });
       },
       checkOverlap(
         workCenterId: string,
@@ -170,141 +198,44 @@ export const WorkOrderStore = signalStore(
   }),
   withHooks({
     onInit(store) {
-      // Initialize Centers
-      const storedWC = localStorage.getItem(WC_STORAGE_KEY);
-      if (storedWC) {
-        try {
-          const parsed = JSON.parse(storedWC) as WorkCenterDocument[];
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            // Migration/Patch: Ensure core centers from storage have isDefault: true
-            const patched = parsed.map(wc => {
-              if (wc.docId.startsWith('wc-')) {
-                return { ...wc, data: { ...wc.data, isDefault: true } };
-              }
-              return wc;
-            });
-            store.setWorkCenters(patched);
-          } else {
-            store.setWorkCenters(getDefaultWorkCenters());
-          }
-        } catch (e) {
-          store.setWorkCenters(getDefaultWorkCenters());
-        }
-      } else {
-        store.setWorkCenters(getDefaultWorkCenters());
-      }
+      const api = inject(ApiService);
+      patchState(store, { isLoading: true });
 
-      // Initialize Orders
-      const storedOrders = localStorage.getItem(STORAGE_KEY);
-      if (storedOrders) {
-        try {
-          const parsed = JSON.parse(storedOrders);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            store.setWorkOrders(parsed);
-          } else {
-            store.setWorkOrders(getDefaultWorkOrders());
+      // Fetch Work Centers directly from API
+      api.getWorkCenters().subscribe({
+        next: (centers) => {
+          if (centers && centers.length > 0) {
+            patchState(store, { workCenters: centers });
           }
-        } catch (e) {
-          store.setWorkOrders(getDefaultWorkOrders());
+        },
+        error: (err) => console.error('Failed to load initial work centers from API', err)
+      });
+
+      // Fetch Work Orders directly from API
+      api.getWorkOrders().subscribe({
+        next: (orders) => {
+          patchState(store, { workOrders: orders, isLoading: false });
+        },
+        error: (err) => {
+          console.error('Failed to load initial work orders from API', err);
+          patchState(store, { isLoading: false });
         }
-      } else {
-        store.setWorkOrders(getDefaultWorkOrders());
-      }
+      });
+
+      // Synchronize reactive signal resources from ApiService
+      effect(() => {
+        const orders = api.ordersSignal();
+        if (orders && orders.length > 0 && store.workOrders().length === 0) {
+          patchState(store, { workOrders: orders });
+        }
+      });
 
       effect(() => {
-        const orders = store.workOrders();
-        const centers = store.workCenters();
-        const source = store.dataSource();
-        
-        if (source === 'local') {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
-          localStorage.setItem(WC_STORAGE_KEY, JSON.stringify(centers));
+        const centers = api.centersSignal();
+        if (centers && centers.length > 0 && store.workCenters().length === 0) {
+          patchState(store, { workCenters: centers });
         }
       });
     },
   })
 );
-
-function getDefaultWorkOrders(): WorkOrderDocument[] {
-  const orders: WorkOrderDocument[] = [];
-  const now = new Date();
-  
-  // +/- 3 months
-  const minDate = new Date(now);
-  minDate.setMonth(now.getMonth() - 3);
-  
-  const maxDate = new Date(now);
-  maxDate.setMonth(now.getMonth() + 3);
-  
-  const totalDaysSpan = Math.floor((maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24));
-
-  const titles = [
-    'Omega Forge', 'Titanium Weld', 'Cyberdyne Systems', 
-    'Mars Rover Chassis', 'Nano Coating', 'Fusion Core V4',
-    'Quantum Stabilizer', 'Flux Capacitor', 'Positron Matrix'
-  ];
-  const wcIds = ['wc-1', 'wc-2', 'wc-3', 'wc-4', 'wc-5'];
-  const statuses: WorkOrderStatus[] = ['open', 'in-progress', 'complete', 'blocked'];
-  
-  const occupied: Record<string, { startMs: number; endMs: number }[]> = {};
-  wcIds.forEach(id => occupied[id] = []);
-
-  let createdCount = 0;
-  let attempts = 0;
-  const targetOrders = 20;
-
-  while (createdCount < targetOrders && attempts < 200) {
-    attempts++;
-    
-    // Random WC
-    const wcId = wcIds[Math.floor(Math.random() * wcIds.length)];
-    
-    // Random duration: 7 to 21 days
-    const durationDays = Math.floor(Math.random() * 15) + 7; 
-    
-    // Random start date within range
-    const randomOffset = Math.floor(Math.random() * (totalDaysSpan - durationDays));
-    const start = new Date(minDate);
-    start.setDate(start.getDate() + randomOffset);
-    
-    const end = new Date(start);
-    end.setDate(start.getDate() + durationDays);
-    
-    const startMs = start.getTime();
-    const endMs = end.getTime();
-    
-    // Check overlap
-    const hasOverlap = occupied[wcId].some(slot => {
-        return (startMs < slot.endMs && endMs > slot.startMs);
-    });
-    
-    if (!hasOverlap) {
-        orders.push({
-            docId: uuidv4(),
-            docType: 'workOrder',
-            data: {
-                name: `${titles[Math.floor(Math.random() * titles.length)]} #${createdCount + 101}`,
-                workCenterId: wcId,
-                status: statuses[Math.floor(Math.random() * statuses.length)],
-                startDate: start.toISOString().split('T')[0],
-                endDate: end.toISOString().split('T')[0]
-            }
-        });
-        
-        occupied[wcId].push({ startMs, endMs });
-        createdCount++;
-    }
-  }
-  
-  return orders;
-}
-
-function getDefaultWorkCenters(): WorkCenterDocument[] {
-  return [
-    { docId: 'wc-1', docType: 'workCenter', data: { name: 'Extrusion Line A', isDefault: true } },
-    { docId: 'wc-2', docType: 'workCenter', data: { name: 'CNC Machine 1', isDefault: true } },
-    { docId: 'wc-3', docType: 'workCenter', data: { name: 'Assembly Station', isDefault: true } },
-    { docId: 'wc-4', docType: 'workCenter', data: { name: 'Quality Control', isDefault: true } },
-    { docId: 'wc-5', docType: 'workCenter', data: { name: 'Packaging Line', isDefault: true } },
-  ];
-}

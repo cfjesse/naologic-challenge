@@ -130,8 +130,8 @@ export function roundToDay(date: Date): Date {
  * Calculates how many columns of `columnMinWidth` fit into one screen
  * of the right panel (screen width minus left panel).
  */
-export function getColumnsPerScreen(): number {
-  const rightPanelWidth = Math.max(window.innerWidth - LEFT_PANEL_WIDTH, 400);
+export function getColumnsPerScreen(leftWidth: number = 280): number {
+  const rightPanelWidth = Math.max(window.innerWidth - leftWidth - 8, 400);
   return Math.ceil(rightPanelWidth / COLUMN_MIN_WIDTH);
 }
 

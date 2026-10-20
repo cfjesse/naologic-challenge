@@ -38,6 +38,51 @@
     </div>
   </div>
 
+  <header class="selector-header mt-5">
+    <h2 class="page-title fs-3">Appearance & Theme</h2>
+    <p class="page-subtitle">Personalize your workspace experience with Light or Dark mode. Saved to session.</p>
+  </header>
+
+  <div class="cards-grid">
+    <div class="source-card" [class.active]="api.currentTheme() === 'light'" (click)="setTheme('light')">
+      <div class="card-icon theme-light-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+      </div>
+      <div class="card-content">
+        <h3>Light Theme</h3>
+        <p>Clean, crisp high-contrast layout optimized for daytime productivity.</p>
+        @if (api.currentTheme() === 'light') {
+          <span class="status-badge">ACTIVE</span>
+        }
+      </div>
+    </div>
+
+    <div class="source-card" [class.active]="api.currentTheme() === 'dark'" (click)="setTheme('dark')">
+      <div class="card-icon theme-dark-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </div>
+      <div class="card-content">
+        <h3>Dark Theme</h3>
+        <p>Sleek, low-glare dark aesthetics designed for night owls and focused work.</p>
+        @if (api.currentTheme() === 'dark') {
+          <span class="status-badge">ACTIVE</span>
+        }
+      </div>
+    </div>
+  </div>
+
   <div class="actions">
     <button class="btn-primary" routerLink="/">Go to Timeline</button>
   </div>

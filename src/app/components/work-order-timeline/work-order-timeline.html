@@ -3,8 +3,41 @@
   <header class="timeline-header">
     <div class="header-content-left">
       <span class="brand">NAO<span class="brand-accent">LOGIC</span></span>
-      <h1 class="page-title">Work Orders</h1>
+      <div class="header-title-row">
+        <h1 class="page-title">Work Orders</h1>
 
+        <!-- View Mode Switcher -->
+        <div class="view-mode-toggle">
+          <button type="button" class="btn-view-toggle" [class.active]="currentView === 'timeline'"
+            (click)="setView('timeline')" title="Interactive Gantt Timeline Chart">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 3v18h18" />
+              <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3" />
+            </svg>
+            <span>Timeline</span>
+          </button>
+          <button type="button" class="btn-view-toggle" [class.active]="currentView === 'kanban'"
+            (click)="setView('kanban')" title="Shop Floor Kanban Board">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="5" height="18" rx="1"></rect>
+              <rect x="10" y="3" width="5" height="12" rx="1"></rect>
+              <rect x="17" y="3" width="5" height="15" rx="1"></rect>
+            </svg>
+            <span>Kanban</span>
+          </button>
+          <button type="button" class="btn-view-toggle" [class.active]="currentView === 'table'"
+            (click)="setView('table')" title="Spreadsheet Table View">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+            <span>Table</span>
+          </button>
+        </div>
+      </div>
+
+      @if (currentView === 'timeline') {
       <div class="main-content-wrapper">
         <div class="timescale-wrapper">
           <div class="timescale-control">
@@ -39,56 +72,485 @@
           </div>
         </div>
       </div>
-    </div>
-
-    <div class="header-content-right">
-      <button class="btn-today me-2" (click)="openExport()">Export CSV</button>
-      <button class="btn-today" (click)="centerViewportOnToday()">Today</button>
-    </div>
-  </header>
-
-  <!-- Gantt Grid -->
-  <div class="gantt-wrapper" #ganttWrapper (scroll)="onGanttScroll()">
-    <!-- Left panel: Work Centers -->
-    <div class="left-panel">
-      <div class="left-header">
-        <span>Work Center</span>
-      </div>
-      @for (wc of store.workCenters(); track wc.docId) {
-      <div class="left-row" [class.even]="$even">
-        <span class="wc-name">{{ wc.data.name }}</span>
-      </div>
       }
     </div>
 
-    <!-- D3 SVG Chart -->
-    <svg #ganttSvg class="gantt-svg"></svg>
+    <div class="header-content-right">
+      <!-- Data Actions Dropdown Menu -->
+      <div class="data-menu-container">
+        <button type="button" class="btn-data-menu" (click)="toggleDataMenu($event)"
+          title="Data Management & Generation">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+            <path d="M3 3v5h5"></path>
+            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path>
+            <path d="M16 21h5v-5"></path>
+          </svg>
+          <span>Data Actions</span>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            class="chevron-icon">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
 
-    <!-- Drag Preview (Ghost) -->
-    @if (ghostBar.visible && auth.isAdmin()) {
-    <div [class]="ghostBar.class" [style.transform]="'translate(' + ghostBar.x + 'px, ' + ghostBar.y + 'px)'"
-      [style.width.px]="ghostBar.w" [style.height.px]="ghostBar.h">
+        @if (dataMenuOpen) {
+        <div class="data-dropdown-menu" (click)="$event.stopPropagation()">
+          <div class="dropdown-header-title">Data Actions</div>
 
-      <!-- Ghost Grip (Left) -->
-      <div class="ghost-grip ghost-grip-left"></div>
+          <button type="button" class="data-menu-item" (click)="onRefreshData()">
+            <div class="menu-icon-box icon-refresh">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+              </svg>
+            </div>
+            <div class="menu-item-text">
+              <div class="menu-item-name">Refresh Data</div>
+              <div class="menu-item-desc">Reload active dataset from backend / storage</div>
+            </div>
+          </button>
 
-      <!-- Ghost Name Label -->
-      <div class="ghost-label ghost-name">{{ ghostBar.name }}</div>
+          <button type="button" class="data-menu-item" (click)="onGenerateNewData()">
+            <div class="menu-icon-box icon-generate">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon
+                  points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2">
+                </polygon>
+              </svg>
+            </div>
+            <div class="menu-item-text">
+              <div class="menu-item-name">Generate New Data</div>
+              <div class="menu-item-desc">Create 20+ realistic randomized orders</div>
+            </div>
+          </button>
 
-      <!-- Ghost Status Pill -->
-      <div class="ghost-status-pill">
-        {{ getStatusLabel(ghostBar.status) }}
+          <div class="dropdown-divider"></div>
+
+          <button type="button" class="data-menu-item" (click)="onResetToDefaults()">
+            <div class="menu-icon-box icon-reset">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                <path d="M3 3v5h5"></path>
+              </svg>
+            </div>
+            <div class="menu-item-text">
+              <div class="menu-item-name">Reset to Factory Defaults</div>
+              <div class="menu-item-desc">Restore initial baseline stations and orders</div>
+            </div>
+          </button>
+        </div>
+        }
       </div>
 
-      <!-- Ghost Grip (Right) -->
-      <div class="ghost-grip ghost-grip-right"></div>
+      <!-- Action Toast Notification -->
+      @if (dataToastMessage) {
+      <div class="data-toast-notification">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        <span>{{ dataToastMessage }}</span>
+      </div>
+      }
+
+      @if (auth.isAdmin()) {
+      <button class="btn-primary-add me-2" (click)="openCreatePanelDefault()" title="Create new work order">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span>Add Work Order</span>
+      </button>
+      }
+      <button class="btn-today me-2" (click)="openExport()">Export CSV</button>
     </div>
+  </header>
+
+  <div class="timeline-view-wrapper" [style.display]="currentView === 'timeline' ? 'block' : 'none'">
+    <!-- Timeline Analytics & Charts Section -->
+    <div class="timeline-analytics-card">
+      <div class="analytics-card-header">
+        <div class="analytics-header-left">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
+          <span class="analytics-title">Timeline Schedule & Workload Analytics</span>
+        </div>
+        <button type="button" class="btn-toggle-analytics" (click)="showGanttCharts = !showGanttCharts">
+          {{ showGanttCharts ? 'Hide Analytics' : 'Show Analytics' }}
+        </button>
+      </div>
+
+      @if (showGanttCharts) {
+      <div class="analytics-content-grid">
+        <!-- SVG Donut: Status Breakdown -->
+        <div class="analytics-panel chart-panel">
+          <div class="panel-heading">Schedule Status Distribution</div>
+          <div class="donut-chart-container">
+            <svg viewBox="0 0 90 90" class="donut-svg">
+              <circle cx="45" cy="45" r="36" fill="transparent" stroke="var(--color-border-subtle, #f1f5f9)"
+                stroke-width="11"></circle>
+              @for (seg of timelineStatusBreakdown(); track seg.status) {
+              <circle cx="45" cy="45" r="36" fill="transparent" [attr.stroke]="seg.color" stroke-width="11"
+                [attr.stroke-dasharray]="seg.strokeDasharray" [attr.stroke-dashoffset]="seg.strokeDashoffset"
+                transform="rotate(-90 45 45)" class="donut-segment"></circle>
+              }
+            </svg>
+            <div class="donut-center-label">
+              <span class="center-value">{{ timelineTotalOrders() }}</span>
+              <span class="center-sub">Orders</span>
+            </div>
+          </div>
+
+          <div class="donut-legend">
+            @for (seg of timelineStatusBreakdown(); track seg.status) {
+            <div class="legend-row">
+              <span class="legend-dot" [style.background-color]="seg.color"></span>
+              <span class="legend-label">{{ seg.label }}</span>
+              <span class="legend-count">{{ seg.count }}</span>
+              <span class="legend-percent">({{ seg.percent }}%)</span>
+            </div>
+            }
+          </div>
+        </div>
+
+        <!-- Station Workload Load Bars -->
+        <div class="analytics-panel workload-panel">
+          <div class="panel-heading">Station Timeline Load & Committed Days</div>
+          <div class="workload-bars-list">
+            @for (load of timelineStationLoads(); track load.id) {
+            <div class="workload-row">
+              <div class="workload-info">
+                <span class="workload-wc-name" [title]="load.name">{{ load.name }}</span>
+                <span class="workload-metrics">{{ load.count }} orders · {{ load.days }}d</span>
+              </div>
+              <div class="workload-bar-track">
+                <div class="workload-bar-fill" [style.width.%]="load.percent" [class.heavy-load]="load.percent >= 80">
+                </div>
+              </div>
+            </div>
+            }
+          </div>
+        </div>
+
+        <!-- Real-Time Schedule Health KPI Cards -->
+        <div class="analytics-panel kpi-panel">
+          <div class="panel-heading">Timeline Schedule Health</div>
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <span class="kpi-label">Total Duration</span>
+              <span class="kpi-value value-purple">{{ timelineTotalScheduledDays() }}d</span>
+              <span class="kpi-sub">Committed on Gantt</span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-label">Schedule Integrity</span>
+              <span class="kpi-value" [class.value-green]="timelineConflictsCount() === 0"
+                [class.value-red]="timelineConflictsCount() > 0">
+                {{ timelineConflictsCount() === 0 ? 'Valid' : timelineConflictsCount() + ' Overlaps' }}
+              </span>
+              <span class="kpi-sub">{{ timelineConflictsCount() === 0 ? 'No station collisions' : 'Requires shifting'
+                }}</span>
+            </div>
+            <div class="kpi-card card-full">
+              <span class="kpi-label">Highest Load Station</span>
+              <span class="kpi-highlight">{{ busiestStationName() }}</span>
+              <span class="kpi-sub">Station with most scheduled duration</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      }
+    </div>
+    <!-- Real-time Drag Info Alert Above Timeline -->
+    @if (dragAlertInfo) {
+    <div class="timeline-info-alert" [class.alert-conflict]="dragAlertInfo.hasOverlap"
+      [class.alert-valid]="!dragAlertInfo.hasOverlap">
+      <div class="alert-icon">
+        @if (dragAlertInfo.hasOverlap) {
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+          <line x1="12" y1="9" x2="12" y2="13"></line>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+        } @else {
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 14 14"></polyline>
+        </svg>
+        }
+      </div>
+      <div class="alert-body">
+        <span class="badge-drag-action">{{ dragAlertInfo.mode === 'move' ? 'Moving' : 'Resizing' }}</span>
+        <strong class="order-name">{{ dragAlertInfo.orderName }}</strong>
+        <span class="date-arrow">➔</span>
+        <span class="date-range">
+          <strong>{{ dragAlertInfo.startDateFormatted }}</strong> to <strong>{{ dragAlertInfo.endDateFormatted
+            }}</strong>
+          <span class="duration-pill">({{ dragAlertInfo.durationDays }} {{ dragAlertInfo.durationDays === 1 ? 'day' :
+            'days' }})</span>
+        </span>
+        @if (dragAlertInfo.hasOverlap) {
+        <span class="overlap-warning">⚠️ Conflict: Overlaps with <strong>{{ dragAlertInfo.overlapOrderName
+            }}</strong></span>
+        }
+      </div>
+    </div>
+    }
+
+    <!-- Gantt Grid Container with 8px Gap -->
+    <div class="gantt-grid" [class.collapsed]="isWorkCenterCollapsed">
+      <!-- Left Column: Work Centers Panel (Collapsible) -->
+      <div class="left-panel" [class.collapsed]="isWorkCenterCollapsed" #leftPanel (scroll)="onLeftPanelScroll()">
+        <!-- Panel Header -->
+        <div class="left-header">
+          @if (!isWorkCenterCollapsed) {
+          <div class="left-header-title">
+            <span>Work Centers</span>
+            <span class="wc-count-badge">{{ store.workCenters().length }}</span>
+          </div>
+          <div class="left-header-actions">
+            @if (auth.isAdmin()) {
+            <button class="btn-add-wc" (click)="openAddWorkCenter()" title="Add Work Center">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span>Add</span>
+            </button>
+            }
+            <button type="button" id="btnCollapseWorkCenters" class="btn-toggle-collapse" (click)="toggleWorkCenterCollapse(); $event.stopPropagation()" title="Collapse Work Centers">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="11 17 6 12 11 7"></polyline>
+                <polyline points="18 17 13 12 18 7"></polyline>
+              </svg>
+            </button>
+          </div>
+          } @else {
+          <!-- Collapsed Header with Expand Button -->
+          <div class="collapsed-header-inner">
+            <button type="button" id="btnExpandWorkCenters" class="btn-toggle-collapse btn-expand" (click)="toggleWorkCenterCollapse(); $event.stopPropagation()" 
+              [title]="'Expand Work Centers (' + store.workCenters().length + ' stations)'">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="13 17 18 12 13 7"></polyline>
+                <polyline points="6 17 11 12 6 7"></polyline>
+              </svg>
+            </button>
+          </div>
+          }
+        </div>
+
+        <!-- Work Center Rows -->
+        @for (wc of store.workCenters(); track wc.docId; let i = $index) {
+        <div class="left-row" [class.even]="i % 2 === 0" [class.collapsed-row]="isWorkCenterCollapsed">
+          @if (!isWorkCenterCollapsed) {
+          <!-- Expanded State -->
+          <div class="wc-info-cell">
+            <div class="wc-badge-mini" [ngClass]="getWcColorClass(wc.docId)">
+              {{ getWcInitials(wc.data.name) }}
+            </div>
+            <div class="wc-name-col">
+              <span class="wc-name" [title]="wc.data.name">{{ wc.data.name }}</span>
+              <span class="wc-order-count">{{ getStationOrderCount(wc.docId) }} orders</span>
+            </div>
+          </div>
+
+          <div class="wc-row-actions">
+            @if (auth.isAdmin()) {
+            <button class="btn-row-add-order" (click)="openCreatePanel(wc.docId, cursorDate); $event.stopPropagation()"
+              [title]="'Add work order for ' + wc.data.name">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+            }
+          </div>
+          } @else {
+          <!-- Collapsed State: Station Avatar & Simplified Menu -->
+          <div class="collapsed-wc-cell" 
+               (click)="toggleCollapsedMenu(wc.docId, $event)"
+               [class.menu-open]="activeCollapsedMenuWcId === wc.docId">
+            <div class="wc-badge-collapsed" [ngClass]="getWcColorClass(wc.docId)" [title]="wc.data.name + ' — Click for menu'">
+              <span class="badge-text">{{ getWcInitials(wc.data.name) }}</span>
+              @if (getStationOrderCount(wc.docId) > 0) {
+              <span class="active-dot" [title]="getStationOrderCount(wc.docId) + ' scheduled orders'"></span>
+              }
+            </div>
+
+            <!-- Simplified Menu Popup / Flyout -->
+            @if (activeCollapsedMenuWcId === wc.docId) {
+            <div class="simplified-wc-menu" (click)="$event.stopPropagation()">
+              <div class="menu-station-header">
+                <div class="menu-station-badge" [ngClass]="getWcColorClass(wc.docId)">
+                  {{ getWcInitials(wc.data.name) }}
+                </div>
+                <div class="menu-station-details">
+                  <div class="menu-station-name">{{ wc.data.name }}</div>
+                  <div class="menu-station-meta">{{ getStationOrderCount(wc.docId) }} orders scheduled</div>
+                </div>
+                <button type="button" class="btn-menu-close" (click)="closeCollapsedMenu($event)">✕</button>
+              </div>
+
+              <div class="menu-divider"></div>
+
+              <div class="menu-actions-list">
+                @if (auth.isAdmin()) {
+                <button type="button" class="menu-action-btn action-add" 
+                  (click)="openCreatePanel(wc.docId, cursorDate); closeCollapsedMenu($event)">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                  <span>Add Order Here</span>
+                </button>
+                }
+
+                <button type="button" class="menu-action-btn" 
+                  (click)="filterByStation(wc.docId); closeCollapsedMenu($event)">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                  </svg>
+                  <span>Focus Station on Timeline</span>
+                </button>
+
+                @if (auth.isAdmin() && !wc.data.isDefault) {
+                <button type="button" class="menu-action-btn action-danger" 
+                  (click)="deleteStation(wc); closeCollapsedMenu($event)">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                  <span>Delete Station</span>
+                </button>
+                }
+              </div>
+            </div>
+            }
+          </div>
+          }
+        </div>
+        }
+      </div>
+
+      <!-- Right Column: Gantt Timeline Column (Matches Timeline Width) -->
+      <div class="gantt-timeline-column">
+        <!-- Scrollable Timeline Canvas -->
+        <div class="gantt-wrapper" #ganttWrapper (scroll)="onGanttScroll()" (wheel)="onGanttWheel($event)">
+          <!-- D3 SVG Chart -->
+          <svg #ganttSvg class="gantt-svg"></svg>
+
+          <!-- Drag Preview (Ghost) -->
+          @if (ghostBar.visible && auth.isAdmin()) {
+          <div [class]="ghostBar.class" [style.transform]="'translate(' + ghostBar.x + 'px, ' + ghostBar.y + 'px)'"
+            [style.width.px]="ghostBar.w" [style.height.px]="ghostBar.h">
+
+            <!-- Ghost Grip (Left) -->
+            <div class="ghost-grip ghost-grip-left"></div>
+
+            <!-- Ghost Name Label -->
+            <div class="ghost-label ghost-name">{{ ghostBar.name }}</div>
+
+            <!-- Ghost Status Pill -->
+            <div class="ghost-status-pill">
+              {{ getStatusLabel(ghostBar.status) }}
+            </div>
+
+            <!-- Ghost Grip (Right) -->
+            <div class="ghost-grip ghost-grip-right"></div>
+          </div>
+          }
+        </div>
+
+        <!-- Custom Scrollbar Bar (Docked directly underneath timeline, replacing native scrollbar) -->
+        <div class="gantt-scrollbar-bar">
+          <!-- Scrollbar Track Row -->
+          <div class="scrollbar-track-row">
+            <button type="button" class="btn-scroll-arrow" (click)="scrollTimeline(-1)"
+              [title]="'Scroll timeline back ' + getStepLabel()" aria-label="Scroll back">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+            </button>
+
+            <div class="scrollbar-track-container" title="Drag to scroll timeline">
+              <input type="range" class="timeline-scrollbar-slider" min="0" max="100" step="0.1"
+                [value]="timelineScrollPercent"
+                (input)="onSliderInput($event)"
+                aria-label="Timeline horizontal scrollbar" />
+            </div>
+
+            <button type="button" class="btn-scroll-arrow" (click)="scrollTimeline(1)"
+              [title]="'Scroll timeline forward ' + getStepLabel()" aria-label="Scroll forward">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Options & Status Row: Step options (Week or Set Number), Visible Range, Today button -->
+          <div class="scrollbar-options-row">
+            <div class="step-options-group">
+              <span class="options-label">Scroll by:</span>
+              <div class="step-chips">
+                <button type="button" class="chip-step" [class.active]="scrollStepDays === 7" (click)="setScrollStep(7)" title="Scroll by 1 Week (7 Days)">
+                  1 Week
+                </button>
+                <button type="button" class="chip-step" [class.active]="scrollStepDays === 1" (click)="setScrollStep(1)" title="Scroll by 1 Day">
+                  1 Day
+                </button>
+                <button type="button" class="chip-step" [class.active]="scrollStepDays === 14" (click)="setScrollStep(14)" title="Scroll by 2 Weeks (14 Days)">
+                  2 Weeks
+                </button>
+                <button type="button" class="chip-step" [class.active]="scrollStepDays === 30" (click)="setScrollStep(30)" title="Scroll by 1 Month (30 Days)">
+                  1 Month
+                </button>
+              </div>
+
+              <div class="custom-step-pill" title="Set custom number of days">
+                <span class="custom-step-label">Set:</span>
+                <input type="number" min="1" max="180" class="custom-step-input"
+                  [(ngModel)]="scrollStepDays" (ngModelChange)="onCustomStepChange($event)"
+                  title="Custom set number of days" />
+                <span class="custom-step-unit">days</span>
+              </div>
+            </div>
+
+            <div class="scrollbar-status-group">
+              <div class="visible-range-badge" title="Currently visible timeline dates">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <span>{{ visibleDateRange.start }} – {{ visibleDateRange.end }}</span>
+              </div>
+
+              <button type="button" class="btn-today-pill" (click)="centerViewportOnToday()" title="Center timeline on Today">
+                <span class="today-dot"></span>
+                <span>Today</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    @if (activeOrders.length > 0) {
+    <app-active-orders-card [activeOrders]="activeOrders" [periodLabel]="cursorPeriodLabel">
+    </app-active-orders-card>
     }
   </div>
 
-  @if (activeOrders.length > 0) {
-  <app-active-orders-card [activeOrders]="activeOrders" [periodLabel]="cursorPeriodLabel">
-  </app-active-orders-card>
+  @if (currentView === 'kanban') {
+  <app-work-order-kanban (editOrder)="onKanbanEdit($event)" (deleteOrder)="onKanbanDelete($event)"
+    (createOrder)="onKanbanCreate($event)"></app-work-order-kanban>
+  }
+
+  @if (currentView === 'table') {
+  <app-work-order-table (editOrder)="onKanbanEdit($event)" (deleteOrder)="onKanbanDelete($event)"
+    (createOrder)="onKanbanCreate($event)"></app-work-order-table>
   }
 </div>
 
@@ -119,3 +581,35 @@
   [message]="confirmUpdateMessage" [confirmLabel]="'Update'" [cancelLabel]="'Cancel'" [destructive]="false"
   (confirm)="onConfirmUpdate()" (cancel)="onCancelUpdate()">
 </app-confirm-dialog>
+
+<!-- Add Work Center Modal Dialog -->
+@if (addWorkCenterVisible) {
+<div class="dialog-overlay" (click)="onAddWorkCenterOverlayClick($event)">
+  <div class="dialog-card add-wc-dialog" (click)="$event.stopPropagation()">
+    <div class="dialog-header">
+      <div class="dialog-icon-box">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+        </svg>
+      </div>
+      <div>
+        <h3 class="dialog-title">New Work Center</h3>
+        <p class="dialog-subtitle">Add a production station or assembly line to your timeline</p>
+      </div>
+    </div>
+    <div class="dialog-content">
+      <label class="form-label">Work Center Name</label>
+      <input type="text" class="form-control" placeholder="e.g. Laser Cutting Station" [(ngModel)]="newWorkCenterName"
+        (keydown.enter)="confirmAddWorkCenter()" (keydown.escape)="cancelAddWorkCenter()" autofocus />
+      @if (addWorkCenterError) {
+      <div class="input-error-msg">{{ addWorkCenterError }}</div>
+      }
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-dialog-cancel" (click)="cancelAddWorkCenter()">Cancel</button>
+      <button type="button" class="btn btn-dialog-confirm" (click)="confirmAddWorkCenter()">Create Work Center</button>
+    </div>
+  </div>
+</div>
+}

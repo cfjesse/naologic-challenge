@@ -58,13 +58,28 @@
   /* Backgrounds */
   --color-bg-main: #ffffff;
   --color-bg-secondary: #f7f7fb; /* Headers */
+  --color-bg-subtle: #f0f0f8; /* Contrasting panel headers, toggles, kpi cards */
+  --color-bg-card: #ffffff;
+  --color-btn-active: #ffffff; /* Active button background */
   --color-bg-hover: #f3f3fa;
   --color-bg-row-even: #fafafd;
 
   /* Borders */
   --color-border-light: #f0f0f6;   /* Rows */
+  --color-border-subtle: #e2e2ec;  /* Sub-panels */
   --color-border-medium: #ededf5;  /* Headers vertical */
   --color-border-strong: #e8e8f0;  /* Key borders */
+
+  /* Navbar */
+  --color-navbar-bg: #ffffff;
+  --color-navbar-border: #e8e8f0;
+
+  /* Component Aliases */
+  --primary-color: var(--color-brand-primary);
+  --text-main: var(--color-text-main);
+  --text-muted: var(--color-text-secondary);
+  --border-color: var(--color-border-strong);
+  --bg-body: var(--color-bg-main);
 
   /* Status: Open */
   --status-open-text: #5046e5;
@@ -93,6 +108,129 @@
   /* Dimensions */
   --header-height: 36px;
   --row-height: 56px;
+
+  /* ── Gantt Timeline Bar Theme Colors (Light Theme) ── */
+  --gantt-bar-title: #0f172a;
+  --gantt-grip-bg: rgba(0, 0, 0, 0.05);
+  --gantt-grip-stroke: rgba(0, 0, 0, 0.14);
+  --gantt-grip-line: #64748b;
+
+  /* Complete (Emerald) */
+  --gantt-complete-bg: #ecfdf5;
+  --gantt-complete-stroke: #6ee7b7;
+  --gantt-complete-pill: #d1fae5;
+  --gantt-complete-text: #065f46;
+
+  /* In Progress (Indigo) */
+  --gantt-progress-bg: #eef2ff;
+  --gantt-progress-stroke: #a5b4fc;
+  --gantt-progress-pill: #e0e7ff;
+  --gantt-progress-text: #3730a3;
+
+  /* Open (Sky Blue) */
+  --gantt-open-bg: #f0f9ff;
+  --gantt-open-stroke: #7dd3fc;
+  --gantt-open-pill: #e0f2fe;
+  --gantt-open-text: #0369a1;
+
+  /* Blocked (Amber / Orange) */
+  --gantt-blocked-bg: #fff7ed;
+  --gantt-blocked-stroke: #fdba74;
+  --gantt-blocked-pill: #ffedd5;
+  --gantt-blocked-text: #9a3412;
+}
+
+/* ─── Dark Theme Variables ─── */
+[data-theme='dark'],
+body.dark-theme {
+  /* Brand */
+  --color-brand-primary: #818cf8;
+  --color-brand-accent: #f8fafc;
+
+  /* Text */
+  --color-text-main: #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-text-danger: #f87171;
+
+  /* Backgrounds: Rich contrasting dark shades */
+  --color-bg-main: #0b0f19;          /* Deep dark base canvas */
+  --color-bg-secondary: #131b2e;     /* Primary headers & bars */
+  --color-bg-card: #162035;          /* Elevated card surface */
+  --color-bg-subtle: #1c2742;        /* Distinct contrasting shade for headers, toggles, KPI cards */
+  --color-btn-active: #2b395d;       /* Contrasting elevated button active state (NEVER white!) */
+  --color-bg-hover: #243252;         /* Hover state */
+  --color-bg-row-even: #0e1628;      /* Even rows */
+
+  /* Borders */
+  --color-border-light: #1e293b;
+  --color-border-subtle: #253350;
+  --color-border-medium: #2e3e63;
+  --color-border-strong: #3b4f7d;
+
+  /* Navbar */
+  --color-navbar-bg: #111726;
+  --color-navbar-border: #253350;
+
+  /* Component Aliases */
+  --primary-color: var(--color-brand-primary);
+  --text-main: var(--color-text-main);
+  --text-muted: var(--color-text-secondary);
+  --border-color: var(--color-border-strong);
+  --bg-body: var(--color-bg-main);
+
+  /* Status: Open */
+  --status-open-text: #a5b4fc;
+  --status-open-bg: rgba(99, 102, 241, 0.22);
+  --status-open-border: rgba(99, 102, 241, 0.4);
+
+  /* Status: In Progress */
+  --status-progress-text: #c084fc;
+  --status-progress-bg: rgba(168, 85, 247, 0.22);
+  --status-progress-border: rgba(168, 85, 247, 0.4);
+
+  /* Status: Complete */
+  --status-complete-text: #4ade80;
+  --status-complete-bg: rgba(34, 197, 94, 0.2);
+  --status-complete-border: rgba(34, 197, 94, 0.35);
+
+  /* Status: Blocked */
+  --status-blocked-text: #fbbf24;
+  --status-blocked-bg: rgba(245, 158, 11, 0.2);
+  --status-blocked-border: rgba(245, 158, 11, 0.35);
+
+  /* Current Period Highlight */
+  --current-highlight-bg: rgba(251, 191, 36, 0.15);
+  --current-highlight-text: #fde047;
+
+  /* ── Gantt Timeline Bar Theme Colors (Dark Theme — Elevated & High Contrast) ── */
+  --gantt-bar-title: #f8fafc;
+  --gantt-grip-bg: rgba(255, 255, 255, 0.12);
+  --gantt-grip-stroke: rgba(255, 255, 255, 0.25);
+  --gantt-grip-line: #cbd5e1;
+
+  /* Complete (Emerald / Green) */
+  --gantt-complete-bg: #064e3b;
+  --gantt-complete-stroke: #10b981;
+  --gantt-complete-pill: #022c22;
+  --gantt-complete-text: #6ee7b7;
+
+  /* In Progress (Royal Indigo) */
+  --gantt-progress-bg: #1e1b4b;
+  --gantt-progress-stroke: #818cf8;
+  --gantt-progress-pill: #0f0d2b;
+  --gantt-progress-text: #c7d2fe;
+
+  /* Open (Electric Azure / Sky Blue) */
+  --gantt-open-bg: #082f49;
+  --gantt-open-stroke: #38bdf8;
+  --gantt-open-pill: #031e30;
+  --gantt-open-text: #7dd3fc;
+
+  /* Blocked (Amber / Orange) */
+  --gantt-blocked-bg: #431407;
+  --gantt-blocked-stroke: #f97316;
+  --gantt-blocked-pill: #2a0b04;
+  --gantt-blocked-text: #fdba74;
 }
 
 /* ─── Custom Naologic Theme ─── */
@@ -103,8 +241,9 @@ body {
   font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #ffffff;
-  color: #1b1f3b;
+  background: var(--color-bg-main);
+  color: var(--color-text-main);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* ─── Global Reset ─── */
@@ -141,3 +280,320 @@ app-root {
   flex-direction: column !important;
   overflow: hidden; /* Let child (panel-body) handle scrolling */
 }
+
+/* ─── Global Dark Theme Overrides ─── */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  .bg-white {
+    background-color: var(--color-navbar-bg) !important;
+  }
+
+  .border-bottom {
+    border-bottom-color: var(--color-navbar-border) !important;
+  }
+
+  .work-order-offcanvas {
+    background-color: var(--color-bg-card) !important;
+    border-left-color: var(--color-border-strong) !important;
+    color: var(--color-text-main) !important;
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.6) !important;
+  }
+
+  .offcanvas-header {
+    border-bottom-color: var(--color-border-strong) !important;
+  }
+
+  .card, .source-card {
+    background-color: var(--color-bg-card);
+    border-color: var(--color-border-strong);
+    color: var(--color-text-main);
+  }
+
+  .source-card.active {
+    background-color: rgba(99, 102, 241, 0.15) !important;
+  }
+
+  .form-control, .form-select {
+    background-color: var(--color-bg-secondary) !important;
+    border-color: var(--color-border-strong) !important;
+    color: var(--color-text-main) !important;
+
+    &:focus {
+      background-color: var(--color-bg-secondary) !important;
+      border-color: var(--color-brand-primary) !important;
+      color: var(--color-text-main) !important;
+      box-shadow: 0 0 0 0.25rem rgba(99, 102, 241, 0.25) !important;
+    }
+  }
+
+  .ng-select .ng-select-container {
+    background-color: var(--color-bg-secondary) !important;
+    border-color: var(--color-border-strong) !important;
+    color: var(--color-text-main) !important;
+  }
+
+  .ng-select .ng-value-label,
+  .ng-select .ng-placeholder {
+    color: var(--color-text-main) !important;
+  }
+
+  .ng-dropdown-panel {
+    background-color: var(--color-bg-card) !important;
+    border-color: var(--color-border-strong) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+  }
+
+  .ng-dropdown-panel .ng-dropdown-panel-items .ng-option {
+    background-color: var(--color-bg-card) !important;
+    color: var(--color-text-main) !important;
+
+    &:hover, &.ng-option-marked {
+      background-color: var(--color-bg-hover) !important;
+    }
+
+    &.ng-option-selected {
+      background-color: rgba(99, 102, 241, 0.25) !important;
+      color: var(--color-brand-primary) !important;
+    }
+  }
+
+  .modal-content {
+    background-color: var(--color-bg-card) !important;
+    border-color: var(--color-border-strong) !important;
+    color: var(--color-text-main) !important;
+  }
+
+  .table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--color-text-main);
+    border-color: var(--color-border-light);
+  }
+
+  /* ── View Mode Switcher Toggle ── */
+  .view-mode-toggle {
+    background-color: var(--color-bg-subtle) !important;
+    border-color: var(--color-border-subtle) !important;
+  }
+
+  .btn-view-toggle {
+    color: var(--color-text-secondary) !important;
+    background-color: transparent !important;
+
+    &:hover:not(.active) {
+      background-color: var(--color-bg-hover) !important;
+      color: var(--color-text-main) !important;
+    }
+
+    &.active {
+      background-color: var(--color-btn-active) !important;
+      color: var(--color-brand-primary) !important;
+      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.45) !important;
+
+      svg {
+        color: var(--color-brand-primary) !important;
+      }
+    }
+  }
+
+  /* ── Analytics Cards & Header ── */
+  .timeline-analytics-card {
+    background-color: var(--color-bg-card) !important;
+    border-color: var(--color-border-medium) !important;
+  }
+
+  .analytics-card-header {
+    background-color: var(--color-bg-subtle) !important;
+    border-bottom-color: var(--color-border-subtle) !important;
+    color: var(--color-text-main) !important;
+  }
+
+  .btn-toggle-analytics {
+    background-color: var(--color-bg-card) !important;
+    border-color: var(--color-border-medium) !important;
+    color: var(--color-text-secondary) !important;
+
+    &:hover {
+      background-color: var(--color-bg-hover) !important;
+      border-color: var(--color-brand-primary) !important;
+      color: var(--color-brand-primary) !important;
+    }
+  }
+
+  /* ── KPI Grid & Cards ── */
+  .kpi-grid {
+    background-color: transparent !important;
+  }
+
+  .kpi-card {
+    background-color: var(--color-bg-subtle) !important;
+    border-color: var(--color-border-subtle) !important;
+
+    .kpi-label {
+      color: var(--color-text-secondary) !important;
+    }
+
+    .kpi-value {
+      color: var(--color-text-main) !important;
+    }
+  }
+
+  /* ── Left Panel & Left Header (Work Centers) ── */
+  .left-panel {
+    background-color: var(--color-bg-card) !important;
+    border-color: var(--color-border-strong) !important;
+  }
+
+  .left-header {
+    background-color: var(--color-bg-subtle) !important;
+    border-bottom-color: var(--color-border-strong) !important;
+    color: var(--color-text-main) !important;
+  }
+
+  .btn-toggle-collapse {
+    background-color: var(--color-bg-card) !important;
+    border-color: var(--color-border-medium) !important;
+    color: var(--color-text-secondary) !important;
+
+    &:hover {
+      background-color: var(--color-bg-hover) !important;
+      border-color: var(--color-brand-primary) !important;
+      color: var(--color-brand-primary) !important;
+    }
+  }
+
+  .left-row.even {
+    background-color: var(--color-bg-row-even) !important;
+  }
+
+  .left-row:hover {
+    background-color: var(--color-bg-hover) !important;
+  }
+
+  /* ── Action Buttons & Dropdowns ── */
+  .btn-data-menu {
+    background-color: var(--color-bg-card) !important;
+    border-color: var(--color-border-medium) !important;
+    color: var(--color-text-main) !important;
+
+    &:hover {
+      background-color: var(--color-bg-hover) !important;
+      border-color: var(--color-brand-primary) !important;
+    }
+  }
+
+  .data-dropdown-menu {
+    background-color: var(--color-bg-card) !important;
+    border-color: var(--color-border-strong) !important;
+    color: var(--color-text-main) !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6) !important;
+
+    .data-menu-item:hover {
+      background-color: var(--color-bg-hover) !important;
+    }
+  }
+
+  .station-flyout-menu {
+    background-color: var(--color-bg-card) !important;
+    border-color: var(--color-border-strong) !important;
+    color: var(--color-text-main) !important;
+
+    &::before {
+      background-color: var(--color-bg-card) !important;
+      border-color: var(--color-border-strong) !important;
+    }
+  }
+
+  .add-wc-dialog {
+    background-color: var(--color-bg-card) !important;
+    border-color: var(--color-border-strong) !important;
+    color: var(--color-text-main) !important;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6) !important;
+  }
+
+  .active-orders-summary {
+    background-color: var(--color-bg-card) !important;
+    border-color: var(--color-border-strong) !important;
+    color: var(--color-text-main) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6) !important;
+
+    .summary-header {
+      background-color: var(--color-bg-subtle) !important;
+      border-bottom-color: var(--color-border-subtle) !important;
+    }
+    .summary-title {
+      color: var(--color-text-main) !important;
+    }
+    .summary-item:hover {
+      background-color: var(--color-bg-hover) !important;
+    }
+  }
+
+  /* ── Timeline Docked Scrollbar Bar & Controls ── */
+  .gantt-scrollbar-bar {
+    background-color: var(--color-bg-card) !important;
+    border-color: var(--color-border-strong) !important;
+  }
+
+  .scrollbar-track-row .btn-scroll-arrow {
+    background-color: var(--color-bg-subtle) !important;
+    border-color: var(--color-border-medium) !important;
+    color: var(--color-text-main) !important;
+
+    &:hover {
+      background-color: var(--color-brand-primary) !important;
+      color: #ffffff !important;
+      border-color: var(--color-brand-primary) !important;
+    }
+  }
+
+  .timeline-scrollbar-slider {
+    background-color: var(--color-bg-secondary) !important;
+    border-color: var(--color-border-strong) !important;
+
+    &:hover {
+      background-color: var(--color-border-strong) !important;
+    }
+
+    &::-webkit-slider-thumb {
+      border-color: var(--color-bg-card) !important;
+    }
+    &::-moz-range-thumb {
+      border-color: var(--color-bg-card) !important;
+    }
+  }
+
+  .step-chips {
+    background-color: var(--color-bg-subtle) !important;
+    border-color: var(--color-border-subtle) !important;
+  }
+
+  .chip-step {
+    color: var(--color-text-secondary) !important;
+    background-color: transparent !important;
+
+    &:hover:not(.active) {
+      background-color: var(--color-bg-hover) !important;
+      color: var(--color-text-main) !important;
+    }
+
+    &.active {
+      background-color: var(--color-btn-active) !important;
+      color: var(--color-brand-primary) !important;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4) !important;
+    }
+  }
+
+  .custom-step-pill {
+    background-color: var(--color-bg-subtle) !important;
+    border-color: var(--color-border-subtle) !important;
+
+    .custom-step-input {
+      background-color: var(--color-bg-card) !important;
+      border-color: var(--color-border-medium) !important;
+      color: var(--color-text-main) !important;
+    }
+  }
+}
+
+

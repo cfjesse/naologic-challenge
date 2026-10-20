@@ -101,15 +101,48 @@ app.post('/api/settings', (req, res) => {
   res.json(settings);
 });
 
+/* ── Lookup Endpoints for Dropdowns ── */
+app.get('/api/statuses', (req, res) => {
+  res.json([
+    { value: 'open', label: 'Open', colorClass: 'status-open' },
+    { value: 'in-progress', label: 'In Progress', colorClass: 'status-in-progress' },
+    { value: 'complete', label: 'Complete', colorClass: 'status-complete' },
+    { value: 'blocked', label: 'Blocked', colorClass: 'status-blocked' },
+  ]);
+});
+
+app.get('/api/timescales', (req, res) => {
+  res.json(['Day', 'Week', 'Month']);
+});
+
 /* ── Work Centers Routes ── */
 app.get('/api/work-centers', (req, res) => {
   res.json(workCenters);
+});
+
+app.post('/api/work-centers', (req, res) => {
+  const newCenter = req.body;
+  if (!newCenter.docId) newCenter.docId = `wc-${uuidv4()}`;
+  if (!newCenter.docType) newCenter.docType = 'workCenter';
+  if (!newCenter.data) newCenter.data = { name: 'New Work Center', isDefault: false };
+  workCenters.push(newCenter);
+  res.status(201).json(newCenter);
 });
 
 app.put('/api/work-centers/:id', (req, res) => {
   const idx = workCenters.findIndex(c => c.docId === req.params.id);
   if (idx !== -1) {
     workCenters[idx] = { ...workCenters[idx], data: { ...workCenters[idx].data, ...req.body } };
+    res.sendStatus(200);
+  } else {
+    res.status(404).send('Center not found');
+  }
+});
+
+app.delete('/api/work-centers/:id', (req, res) => {
+  const initialLen = workCenters.length;
+  workCenters = workCenters.filter(c => c.docId !== req.params.id);
+  if (workCenters.length !== initialLen) {
     res.sendStatus(200);
   } else {
     res.status(404).send('Center not found');
@@ -149,6 +182,25 @@ app.delete('/api/orders/:id', (req, res) => {
   }
 });
 
+/* ── Data Generation & Reset Routes ── */
+app.post('/api/orders/generate', (req, res) => {
+  workOrders = generateInitialMockData();
+  res.json(workOrders);
+});
+
+app.post('/api/reset', (req, res) => {
+  workCenters = [
+    { docId: 'wc-1', docType: 'workCenter', data: { name: 'Extrusion Line A', isDefault: true } },
+    { docId: 'wc-2', docType: 'workCenter', data: { name: 'CNC Machine 1', isDefault: true } },
+    { docId: 'wc-3', docType: 'workCenter', data: { name: 'Assembly Station', isDefault: true } },
+    { docId: 'wc-4', docType: 'workCenter', data: { name: 'Quality Control', isDefault: true } },
+    { docId: 'wc-5', docType: 'workCenter', data: { name: 'Packaging Line', isDefault: true } },
+  ];
+  workOrders = generateInitialMockData();
+  settings = { timeScale: 'Day', theme: 'light' };
+  res.json({ workCenters, workOrders, settings });
+});
+
 /* ── Auth Routes (Mock) ── */
 app.post('/api/auth/login', (req, res) => {
   const { username, password } = req.body;
@@ -161,6 +213,10 @@ app.post('/api/auth/login', (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`ERP Server (Session Memory Only) running at http://localhost:${port}`);
-});
+if (require.main === module) {
+  app.listen(port, () => {
+    console.log(`ERP Server (Session Memory Only) running at http://localhost:${port}`);
+  });
+}
+
+module.exports = app;

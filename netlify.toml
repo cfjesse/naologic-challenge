@@ -1,0 +1,27 @@
+[build]
+  command = "npm run build"
+  publish = "dist/erp/browser"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+  included_files = ["server/**"]
+
+# Rewrite /api/* to the serverless function
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api"
+  to = "/.netlify/functions/api/api"
+  status = 200
+  force = true
+
+# Angular Single Page App fallback for HTML5 pushState routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

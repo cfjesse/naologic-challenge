@@ -25,6 +25,17 @@
       }
     </div>
 
+    <!-- Work Center Station — ng-select populated from API -->
+    <div class="form-group">
+      <label class="form-label" for="wo-center">Work Center</label>
+      <ng-select id="wo-center" formControlName="workCenterId" [items]="workCenterOptions" bindValue="id" bindLabel="name"
+        [clearable]="false" [searchable]="true" class="wc-ng-select" placeholder="Select work center">
+      </ng-select>
+      @if (submitted && form.get('workCenterId')?.hasError('required')) {
+      <span class="field-error">Work center is required</span>
+      }
+    </div>
+
     <!-- Status — ng-select with colored badges -->
     <div class="form-group">
       <label class="form-label">Status</label>

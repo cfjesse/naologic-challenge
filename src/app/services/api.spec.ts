@@ -87,14 +87,44 @@ describe('ApiService', () => {
       req.flush([]);
     });
 
-    it('should update work center', () => {
-      const data = { name: 'Line B' };
-      service.updateWorkCenter('wc-1', data).subscribe();
+    it('should create work center', () => {
+      const center: WorkCenterDocument = {
+        docId: 'wc-99',
+        docType: 'workCenter',
+        data: { name: 'Packaging B' }
+      };
+      service.createWorkCenter(center).subscribe();
 
-      const req = httpMock.expectOne('http://localhost:3000/api/work-centers/wc-1');
-      expect(req.request.method).toBe('PUT');
-      expect(req.request.body).toEqual(data);
+      const req = httpMock.expectOne('http://localhost:3000/api/work-centers');
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual(center);
+      req.flush(center);
+    });
+
+    it('should delete work center', () => {
+      service.deleteWorkCenter('wc-99').subscribe();
+
+      const req = httpMock.expectOne('http://localhost:3000/api/work-centers/wc-99');
+      expect(req.request.method).toBe('DELETE');
       req.flush({});
+    });
+  });
+
+  describe('Batch Generation and Reset', () => {
+    it('should generate orders from API', () => {
+      service.generateOrders().subscribe();
+
+      const req = httpMock.expectOne('http://localhost:3000/api/orders/generate');
+      expect(req.request.method).toBe('POST');
+      req.flush([]);
+    });
+
+    it('should reset data from API', () => {
+      service.resetData().subscribe();
+
+      const req = httpMock.expectOne('http://localhost:3000/api/reset');
+      expect(req.request.method).toBe('POST');
+      req.flush({ workCenters: [], workOrders: [], settings: { timeScale: 'Day', theme: 'light' } });
     });
   });
 });

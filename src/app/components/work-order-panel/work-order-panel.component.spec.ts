@@ -2,6 +2,8 @@ import '../../test-init';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { WorkOrderPanelComponent, PanelSaveEvent } from './work-order-panel';
 import { WorkOrderStore } from '../../store/work-order.store';
+import { ApiService } from '../../services/api';
+import { of } from 'rxjs';
 import { NgbActiveOffcanvas, NgbDatepickerModule } from '@ng-bootstrap/ng-bootstrap';
 import { NgSelectModule } from '@ng-select/ng-select';
 import { ReactiveFormsModule } from '@angular/forms';
@@ -13,6 +15,7 @@ describe('WorkOrderPanelComponent', () => {
   let fixture: ComponentFixture<WorkOrderPanelComponent>;
   let storeMock: any;
   let offcanvasMock: any;
+  let apiMock: any;
 
   beforeEach(async () => {
     storeMock = {
@@ -24,6 +27,18 @@ describe('WorkOrderPanelComponent', () => {
       close: vi.fn(),
       dismiss: vi.fn()
     };
+    apiMock = {
+      getWorkCenters: vi.fn().mockReturnValue(of([
+        { docId: 'wc-1', docType: 'workCenter', data: { name: 'Extrusion Line A', isDefault: true } },
+        { docId: 'wc-2', docType: 'workCenter', data: { name: 'CNC Machine 1', isDefault: true } }
+      ])),
+      getStatuses: vi.fn().mockReturnValue(of([
+        { value: 'open', label: 'Open', colorClass: 'status-open' },
+        { value: 'in-progress', label: 'In Progress', colorClass: 'status-in-progress' },
+        { value: 'complete', label: 'Complete', colorClass: 'status-complete' },
+        { value: 'blocked', label: 'Blocked', colorClass: 'status-blocked' },
+      ]))
+    };
 
     await TestBed.configureTestingModule({
       imports: [
@@ -34,7 +49,8 @@ describe('WorkOrderPanelComponent', () => {
       ],
       providers: [
         { provide: WorkOrderStore, useValue: storeMock },
-        { provide: NgbActiveOffcanvas, useValue: offcanvasMock }
+        { provide: NgbActiveOffcanvas, useValue: offcanvasMock },
+        { provide: ApiService, useValue: apiMock }
       ]
     }).compileComponents();
 
