@@ -2200,6 +2200,84 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
       gap: 10px;
       margin-left: auto;
 
+      .scrollbar-timescale-control {
+        min-width: 124px;
+        display: flex;
+        align-items: center;
+
+        ::ng-deep .ng-select.scrollbar-timescale-select {
+          width: 100%;
+
+          .ng-select-container {
+            border: 1px solid var(--color-border-medium, #cbd5e1);
+            border-radius: 6px;
+            background: var(--color-bg-card, #ffffff);
+            min-height: 28px;
+            height: 28px;
+            padding: 0 4px;
+            font-size: 11.5px;
+            align-items: center;
+            transition: all 0.15s ease;
+
+            &:hover {
+              border-color: var(--color-brand-primary);
+            }
+
+            .ng-value-container {
+              padding-left: 4px;
+              display: flex;
+              align-items: center;
+
+              .timescale-label {
+                font-size: 11px;
+                font-weight: 500;
+                color: var(--color-text-secondary);
+                margin-right: 4px;
+              }
+
+              .timescale-value {
+                font-size: 11.5px;
+                font-weight: 700;
+                color: var(--color-brand-primary);
+              }
+            }
+
+            .ng-arrow-wrapper {
+              padding-right: 4px;
+              width: 16px;
+
+              .ng-arrow {
+                border-width: 4px 4px 2px;
+              }
+            }
+          }
+
+          &.ng-select-opened .ng-select-container {
+            border-color: var(--color-brand-primary);
+            box-shadow: 0 0 0 2px rgba(80, 70, 229, 0.15);
+          }
+
+          .ng-dropdown-panel {
+            font-size: 12px;
+            border-radius: 6px;
+            box-shadow: var(--color-popover-shadow);
+            background-color: var(--color-bg-card);
+            border: 1px solid var(--color-border-strong);
+            z-index: 1050;
+
+            .ng-option {
+              padding: 6px 10px;
+              font-size: 12px;
+
+              .timescale-option {
+                font-size: 12px;
+                font-weight: 600;
+              }
+            }
+          }
+        }
+      }
+
       .visible-range-badge {
         display: inline-flex;
         align-items: center;
