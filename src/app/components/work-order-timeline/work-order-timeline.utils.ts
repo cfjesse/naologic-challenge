@@ -147,25 +147,29 @@ export function getEndDateForColumnCount(start: Date, scale: TimeScale, columnCo
 
 /**
  * Calculates the initial viewport start date from work orders.
- * Starts at the earliest work order date, offset back by 1 timescale unit
- * (1 day for Day, 1 week for Week, 1 month for Month),
+ * Starts directly at the earliest available work order date,
  * floored to the current timescale boundary.
  */
 export function calculateInitialStart(orders: any[], scale: TimeScale): Date {
   const interval = getInterval(scale);
 
-  if (orders.length === 0) {
-    return interval.offset(interval.floor(new Date()), -1);
+  if (!orders || orders.length === 0) {
+    return interval.floor(new Date());
   }
 
   let minTime = Infinity;
   for (const order of orders) {
-    const t = new Date(order.data.startDate).getTime();
-    if (t < minTime) minTime = t;
+    if (order?.data?.startDate) {
+      const t = new Date(order.data.startDate).getTime();
+      if (!isNaN(t) && t < minTime) minTime = t;
+    }
   }
 
-  const floored = interval.floor(new Date(minTime));
-  return interval.offset(floored, -1);
+  if (minTime === Infinity) {
+    return interval.floor(new Date());
+  }
+
+  return interval.floor(new Date(minTime));
 }
 
 export function calculateViewportRange(date: Date, scale: TimeScale): { start: Date, end: Date } {

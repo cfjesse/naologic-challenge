@@ -1,11 +1,23 @@
+@use 'theme' as theme;
+
 :host {
   display: block;
 }
 
 .app-navbar {
-  background-color: var(--color-navbar-bg, #ffffff) !important;
-  border-color: var(--color-navbar-border, #e8e8f0) !important;
+  padding: 8px 24px;
+  background-color: var(--color-navbar-bg, #ffffff);
+  border-bottom: 1px solid var(--color-navbar-border, #e8e8f0);
   transition: background-color 0.2s ease, border-color 0.2s ease;
+
+  .brand-logo-text {
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+
+  .navbar-nav {
+    align-items: center;
+  }
 }
 
 /* Navigation & Actions */
@@ -44,26 +56,7 @@
 }
 
 .btn-theme-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border-strong, #e8e8f0);
-  background: var(--color-bg-secondary, #f7f7fb);
-  color: var(--color-text-main, #1b1f3b);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: var(--color-bg-hover, #f3f3fa);
-    border-color: var(--color-brand-primary, #5046e5);
-    color: var(--color-brand-primary, #5046e5);
-    transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-  }
+  @extend %theme-btn-toggle;
 
   svg {
     flex-shrink: 0;
@@ -75,20 +68,106 @@
 }
 
 .btn-logout {
-  background: transparent;
-  border: none;
-  color: #ef4444; 
-  padding: 8px;
-  border-radius: 8px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 7px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.22);
+  color: #ef4444; 
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s;
+  transition: all 0.2s ease;
   
+  .logout-text {
+    line-height: 1;
+    font-weight: 600;
+  }
+
+  svg {
+    flex-shrink: 0;
+  }
+
   &:hover {
-    background: rgba(239, 68, 68, 0.12);
+    background: rgba(239, 68, 68, 0.16);
+    border-color: rgba(239, 68, 68, 0.4);
     color: #dc2626;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.15);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  @include theme.on-dark {
+    background: rgba(239, 68, 68, 0.14);
+    border-color: rgba(239, 68, 68, 0.32);
+    color: #f87171;
+
+    &:hover {
+      background: rgba(239, 68, 68, 0.25);
+      border-color: rgba(239, 68, 68, 0.5);
+      color: #fca5a5;
+      box-shadow: 0 2px 10px rgba(239, 68, 68, 0.3);
+    }
+  }
+}
+
+/* ──────── Responsive Navbar ──────── */
+@media (max-width: 991px) {
+  .app-navbar {
+    padding-left: 16px;
+    padding-right: 16px;
+
+    .navbar-toggler {
+      border: 1px solid var(--color-border-strong, #e8e8f0);
+      background: var(--color-bg-secondary, #f7f7fb);
+      padding: 6px 10px;
+      border-radius: 6px;
+
+      .navbar-toggler-icon {
+        filter: invert(var(--navbar-toggler-invert, 0.5));
+      }
+    }
+
+    .navbar-collapse {
+      padding-top: 14px;
+      margin-top: 10px;
+      border-top: 1px solid var(--color-border-subtle, #e8e8f0);
+
+      .navbar-nav {
+        align-items: stretch;
+        gap: 6px;
+      }
+
+      .ms-auto {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px dashed var(--color-border-subtle, #e8e8f0);
+        justify-content: space-between;
+        width: 100%;
+      }
+    }
+  }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  .app-navbar {
+    padding-top: 4px;
+    padding-bottom: 4px;
+
+    .brand-logo-text {
+      font-size: 1.15rem;
+    }
+
+    .nav-icon {
+      height: 30px;
+      font-size: 13px;
+    }
   }
 }
 

@@ -467,6 +467,8 @@
           <!-- Scrollbar Track Row -->
           <div class="scrollbar-track-row">
             <button type="button" class="btn-scroll-arrow" (click)="scrollTimeline(-1)"
+              [disabled]="timelineScrollPercent <= 0.05"
+              [class.disabled]="timelineScrollPercent <= 0.05"
               [title]="'Scroll timeline back ' + getStepLabel()" aria-label="Scroll back">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="15 18 9 12 15 6"></polyline>
@@ -474,7 +476,7 @@
             </button>
 
             <div class="scrollbar-track-container" title="Drag to scroll timeline">
-              <input type="range" class="timeline-scrollbar-slider" min="0" max="100" step="0.1"
+              <input type="range" class="timeline-scrollbar-slider" min="0" max="100" [step]="sliderStepPercent"
                 [value]="timelineScrollPercent"
                 (input)="onSliderInput($event)"
                 aria-label="Timeline horizontal scrollbar" />
@@ -507,12 +509,13 @@
                 </button>
               </div>
 
-              <div class="custom-step-pill" title="Set custom number of days">
+              <div class="custom-step-pill" title="Set custom number of days and press Enter to scroll">
                 <span class="custom-step-label">Set:</span>
                 <input type="number" min="1" max="180" class="custom-step-input"
                   [(ngModel)]="scrollStepDays" (ngModelChange)="onCustomStepChange($event)"
-                  title="Custom set number of days" />
-                <span class="custom-step-unit">days</span>
+                  (change)="applyCustomStep()" (keydown.enter)="applyCustomStep()"
+                  title="Custom set number of days (Press Enter or click days to scroll)" />
+                <span class="custom-step-unit" (click)="applyCustomStep()" style="cursor: pointer;" title="Click to scroll by custom days">days</span>
               </div>
             </div>
 

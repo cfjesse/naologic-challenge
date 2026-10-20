@@ -10,7 +10,7 @@ app.use(cors());
 app.use(bodyParser.json());
 
 /* ── In-Memory Data Storage ── */
-let settings = { timeScale: 'Day', theme: 'light' };
+let settings = { timeScale: 'Day', theme: 'dark' };
 let workCenters = [
   { docId: 'wc-1', docType: 'workCenter', data: { name: 'Extrusion Line A', isDefault: true } },
   { docId: 'wc-2', docType: 'workCenter', data: { name: 'CNC Machine 1', isDefault: true } },
@@ -197,7 +197,7 @@ app.post('/api/reset', (req, res) => {
     { docId: 'wc-5', docType: 'workCenter', data: { name: 'Packaging Line', isDefault: true } },
   ];
   workOrders = generateInitialMockData();
-  settings = { timeScale: 'Day', theme: 'light' };
+  settings = { timeScale: 'Day', theme: 'dark' };
   res.json({ workCenters, workOrders, settings });
 });
 

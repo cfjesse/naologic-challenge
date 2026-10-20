@@ -1,4 +1,6 @@
 
+@use 'theme' as theme;
+
 :host {
   display: block;
   min-height: 100vh;
@@ -51,8 +53,8 @@
 }
 
 .source-card {
-  background: white;
-  border: 2px solid var(--border-color);
+  background: var(--color-bg-card, #ffffff);
+  border: 2px solid var(--color-border-strong, var(--border-color));
   border-radius: 1.25rem;
   padding: 2.5rem;
   cursor: pointer;
@@ -67,12 +69,39 @@
 .source-card:hover {
   transform: translateY(-8px);
   border-color: var(--primary-color);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.01);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.12), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
 .source-card.active {
   border-color: var(--primary-color);
-  background-color: #f5f3ff; /* Very light primary alpha */
+  background-color: rgba(99, 102, 241, 0.12);
+}
+
+@include theme.on-dark-root {
+  .source-card {
+    background: var(--color-bg-card, #162035);
+    border-color: var(--color-border-strong, #2e3e63);
+    color: var(--color-text-main, #f1f5f9);
+
+    &:hover {
+      border-color: var(--color-brand-primary, #6366f1);
+      box-shadow: 0 20px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    &.active {
+      border-color: var(--color-brand-primary, #6366f1);
+      background-color: rgba(99, 102, 241, 0.22);
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.18);
+    }
+  }
+
+  .page-title {
+    color: #f1f5f9;
+  }
+
+  .page-subtitle {
+    color: #94a3b8;
+  }
 }
 
 .card-icon {

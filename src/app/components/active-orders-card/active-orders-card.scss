@@ -1,3 +1,5 @@
+@use 'theme' as theme;
+
 $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 
 :host {
@@ -6,6 +8,7 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   padding: 24px 32px;
   background-color: var(--color-bg-secondary);
   border-top: 1px solid var(--color-border-medium);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .active-orders-card {
@@ -26,22 +29,25 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   font-weight: 600;
   color: var(--color-text-main);
   margin: 0;
+  transition: color 0.2s ease;
 }
 
 .count-badge {
   font-family: $font-family;
   font-size: 12px;
   font-weight: 700;
-  color: #fff;
+  color: var(--color-brand-contrast, #ffffff);
   background-color: var(--color-brand-primary);
   padding: 4px 10px;
   border-radius: 20px;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .tags-cloud {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  background: transparent;
 }
 
 .empty-state {
@@ -50,24 +56,44 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   color: var(--color-text-secondary);
   font-style: italic;
   padding: 12px 0;
+  transition: color 0.2s ease;
 }
 
 /* ──────── Order Tag ──────── */
 .order-tag {
-  background: #ffffff;
-  border: 1px solid var(--color-border-medium);
+  background-color: var(--color-bg-card, #ffffff);
+  border: 1px solid var(--color-border-strong, #ededf5);
+  border-left: 3px solid var(--color-border-strong, #cbd5e1);
   border-radius: 8px;
   padding: 10px 14px;
   min-width: 200px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: var(--color-card-shadow, 0 1px 3px rgba(0, 0, 0, 0.05));
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.2s ease, border-color 0.2s ease;
   display: flex;
   flex-direction: column;
   gap: 8px;
 
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    box-shadow: var(--color-card-shadow-hover, 0 4px 12px rgba(0, 0, 0, 0.12));
+    border-color: var(--color-brand-primary);
+    background-color: var(--color-bg-hover, #f3f3fa);
+  }
+
+  &.status-open {
+    border-left-color: var(--status-open-text);
+  }
+
+  &.status-in-progress {
+    border-left-color: var(--status-progress-text);
+  }
+
+  &.status-complete {
+    border-left-color: var(--status-complete-text);
+  }
+
+  &.status-blocked {
+    border-left-color: var(--status-blocked-text);
   }
 }
 
@@ -78,9 +104,17 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
 }
 
 @keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.2); }
-  70% { box-shadow: 0 0 0 4px rgba(0, 0, 0, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.2);
+  }
+
+  70% {
+    box-shadow: 0 0 0 4px rgba(0, 0, 0, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+  }
 }
 
 .status-dot {
@@ -90,47 +124,25 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   flex-shrink: 0;
   animation: pulse 2s infinite;
 
-  .status-open & { 
-    background-color: var(--status-open-text); 
-    box-shadow: 0 0 0 0 rgba(80, 70, 229, 0.4);
-    animation-name: pulse-open;
+  .status-open & {
+    background-color: var(--status-open-text);
+    box-shadow: 0 0 0 0 var(--status-open-border);
   }
-  .status-in-progress & { 
-    background-color: var(--status-progress-text); 
-    box-shadow: 0 0 0 0 rgba(123, 97, 255, 0.4);
-    animation-name: pulse-progress;
-  }
-  .status-complete & { 
-    background-color: var(--status-complete-text); 
-    box-shadow: 0 0 0 0 rgba(46, 125, 50, 0.4);
-    animation-name: pulse-complete;
-  }
-  .status-blocked & { 
-    background-color: var(--status-blocked-text); 
-    box-shadow: 0 0 0 0 rgba(245, 127, 23, 0.4);
-    animation-name: pulse-blocked;
-  }
-}
 
-@keyframes pulse-open {
-  0% { box-shadow: 0 0 0 0 rgba(80, 70, 229, 0.4); }
-  70% { box-shadow: 0 0 0 4px rgba(80, 70, 229, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(80, 70, 229, 0); }
-}
-@keyframes pulse-progress {
-  0% { box-shadow: 0 0 0 0 rgba(123, 97, 255, 0.4); }
-  70% { box-shadow: 0 0 0 4px rgba(123, 97, 255, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(123, 97, 255, 0); }
-}
-@keyframes pulse-complete {
-  0% { box-shadow: 0 0 0 0 rgba(46, 125, 50, 0.4); }
-  70% { box-shadow: 0 0 0 4px rgba(46, 125, 50, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(46, 125, 50, 0); }
-}
-@keyframes pulse-blocked {
-  0% { box-shadow: 0 0 0 0 rgba(245, 127, 23, 0.4); }
-  70% { box-shadow: 0 0 0 4px rgba(245, 127, 23, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(245, 127, 23, 0); }
+  .status-in-progress & {
+    background-color: var(--status-progress-text);
+    box-shadow: 0 0 0 0 var(--status-progress-border);
+  }
+
+  .status-complete & {
+    background-color: var(--status-complete-text);
+    box-shadow: 0 0 0 0 var(--status-complete-border);
+  }
+
+  .status-blocked & {
+    background-color: var(--status-blocked-text);
+    box-shadow: 0 0 0 0 var(--status-blocked-border);
+  }
 }
 
 .order-name {
@@ -140,7 +152,7 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   color: var(--color-text-main);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: aggregate;
+  text-overflow: ellipsis;
   max-width: 150px;
 }
 
@@ -157,22 +169,33 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  
-  .status-open & { color: var(--status-open-text); }
-  .status-in-progress & { color: var(--status-progress-text); }
-  .status-complete & { color: var(--status-complete-text); }
-  .status-blocked & { color: var(--status-blocked-text); }
+
+  .status-open & {
+    color: var(--status-open-text);
+  }
+
+  .status-in-progress & {
+    color: var(--status-progress-text);
+  }
+
+  .status-complete & {
+    color: var(--status-complete-text);
+  }
+
+  .status-blocked & {
+    color: var(--status-blocked-text);
+  }
 }
 
 .date-range {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-feature-settings: "tnum";
+  font-feature-settings: 'tnum';
   font-variant-numeric: tabular-nums;
 }
 
 .date-icon {
   font-size: 14px;
-  color: var(--color-text-tertiary); /* Need to ensure this var exists or assume #b0b4c8 */
+  color: var(--color-text-tertiary, var(--color-text-secondary));
 }

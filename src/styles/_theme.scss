@@ -1,0 +1,472 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   NAOLOGIC ERP THEME SYSTEM
+   Isolated, modular Sass theme definition with maps, functions, mixins,
+   placeholders (extensions), and CSS variable generation.
+   ══════════════════════════════════════════════════════════════════════════ */
+@use 'sass:map';
+
+/* ─── 1. Sass Theme Token Maps ─── */
+$theme-light: (
+  brand-primary: #5046e5,
+  brand-accent: #1b1f3b,
+  text-main: #1b1f3b,
+  text-secondary: #8b8fa3,
+  text-danger: #e53935,
+  bg-main: #ffffff,
+  bg-secondary: #f7f7fb,
+  bg-subtle: #f0f0f8,
+  bg-card: #ffffff,
+  btn-active: #ffffff,
+  bg-hover: #f3f3fa,
+  bg-row-even: #fafafd,
+  border-light: #f0f0f6,
+  border-subtle: #e2e2ec,
+  border-medium: #ededf5,
+  border-strong: #e8e8f0,
+  navbar-bg: #ffffff,
+  navbar-border: #e8e8f0,
+  bg-column: #f8f8fc
+);
+
+$theme-dark: (
+  brand-primary: #818cf8,
+  brand-accent: #f8fafc,
+  text-main: #f1f5f9,
+  text-secondary: #94a3b8,
+  text-danger: #f87171,
+  bg-main: #0b0f19,
+  bg-secondary: #131b2e,
+  bg-subtle: #1c2742,
+  bg-card: #162035,
+  btn-active: #2b395d,
+  bg-hover: #243252,
+  bg-row-even: #0e1628,
+  border-light: #1e293b,
+  border-subtle: #253350,
+  border-medium: #2e3e63,
+  border-strong: #3b4f7d,
+  navbar-bg: #111726,
+  navbar-border: #253350,
+  bg-column: #111726
+);
+
+/* ─── 2. Sass Functions ─── */
+
+/// Get a CSS variable expression for a theme token.
+/// Example: theme-var(bg-card) => var(--color-bg-card)
+@function theme-var($name, $fallback: null) {
+  @if $fallback != null {
+    @return var(--color-#{$name}, #{$fallback});
+  }
+  @return var(--color-#{$name});
+}
+
+/// Retrieve static raw color value from light theme map
+@function light-color($key) {
+  @if map.has-key($theme-light, $key) {
+    @return map.get($theme-light, $key);
+  }
+  @warn "Unknown light theme key: `#{$key}`";
+  @return null;
+}
+
+/// Retrieve static raw color value from dark theme map
+@function dark-color($key) {
+  @if map.has-key($theme-dark, $key) {
+    @return map.get($theme-dark, $key);
+  }
+  @warn "Unknown dark theme key: `#{$key}`";
+  @return null;
+}
+
+/// Retrieve raw color by key and mode ('light' | 'dark')
+@function theme-color($key, $mode: 'light') {
+  @if $mode == 'dark' {
+    @return dark-color($key);
+  }
+  @return light-color($key);
+}
+
+/* ─── 3. Sass Mixins ─── */
+
+/// Applies styles when dark theme is active within a component selector
+/// Works across :host-context([data-theme='dark']), body.dark-theme, and attribute selector
+@mixin on-dark {
+  :host-context([data-theme='dark']) &,
+  :host-context(body.dark-theme) &,
+  [data-theme='dark'] &,
+  body.dark-theme & {
+    @content;
+  }
+}
+
+/// Applies styles when dark theme is active at the root level of a component
+@mixin on-dark-root {
+  :host-context([data-theme='dark']),
+  :host-context(body.dark-theme),
+  [data-theme='dark'],
+  body.dark-theme {
+    @content;
+  }
+}
+
+/// Card elevation & surface mixin
+@mixin theme-card($padding: 1.5rem, $radius: 14px) {
+  background-color: var(--color-bg-card, #ffffff);
+  border: 1px solid var(--color-border-strong, #e8e8f0);
+  border-radius: $radius;
+  color: var(--color-text-main, #1b1f3b);
+  padding: $padding;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/// Interactive button toggle mixin
+@mixin theme-btn-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong, #e8e8f0);
+  background: var(--color-bg-secondary, #f7f7fb);
+  color: var(--color-text-main, #1b1f3b);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: var(--color-bg-hover, #f3f3fa);
+    border-color: var(--color-brand-primary, #5046e5);
+    color: var(--color-brand-primary, #5046e5);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  }
+}
+
+/// Form input mixin using theme tokens
+@mixin theme-form-control {
+  background-color: var(--color-bg-secondary, #f7f7fb);
+  border: 1px solid var(--color-border-strong, #e8e8f0);
+  color: var(--color-text-main, #1b1f3b);
+  border-radius: 8px;
+  padding: 8px 12px;
+  transition: all 0.2s ease;
+
+  &:focus {
+    background-color: var(--color-bg-card, #ffffff);
+    border-color: var(--color-brand-primary, #5046e5);
+    box-shadow: 0 0 0 3px rgba(80, 70, 229, 0.2);
+    outline: none;
+  }
+}
+
+/* ─── 4. Sass Placeholder Extensions (% placeholders) ─── */
+
+%theme-card {
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 12px;
+  color: var(--color-text-main);
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+%theme-subtle-card {
+  background-color: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 10px;
+  color: var(--color-text-main);
+}
+
+%theme-btn-toggle {
+  @include theme-btn-toggle;
+}
+
+%theme-input {
+  @include theme-form-control;
+}
+
+%theme-dialog {
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 14px;
+  color: var(--color-text-main);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+}
+
+/* ─── 5. CSS Variables Generation Mixins ─── */
+
+@mixin theme-root-variables {
+  :root,
+  [data-theme='light'] {
+    /* Brand */
+    --color-brand-primary: #{light-color(brand-primary)};
+    --color-brand-accent: #{light-color(brand-accent)};
+    --color-brand-contrast: #ffffff;
+
+    /* Shadows */
+    --color-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    --color-card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.12);
+    --color-popover-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+    /* Text */
+    --color-text-main: #{light-color(text-main)};
+    --color-text-secondary: #{light-color(text-secondary)};
+    --color-text-tertiary: #94a3b8;
+    --color-text-danger: #{light-color(text-danger)};
+
+    /* Backgrounds */
+    --color-bg-main: #{light-color(bg-main)};
+    --color-bg-secondary: #{light-color(bg-secondary)};
+    --color-bg-subtle: #{light-color(bg-subtle)};
+    --color-bg-card: #{light-color(bg-card)};
+    --color-btn-active: #{light-color(btn-active)};
+    --color-bg-hover: #{light-color(bg-hover)};
+    --color-bg-row-even: #{light-color(bg-row-even)};
+    --color-bg-column: #{light-color(bg-column)};
+
+    /* Borders */
+    --color-border-light: #{light-color(border-light)};
+    --color-border-subtle: #{light-color(border-subtle)};
+    --color-border-medium: #{light-color(border-medium)};
+    --color-border-strong: #{light-color(border-strong)};
+
+    /* Navbar */
+    --color-navbar-bg: #{light-color(navbar-bg)};
+    --color-navbar-border: #{light-color(navbar-border)};
+
+    /* Component Aliases */
+    --primary-color: var(--color-brand-primary);
+    --text-main: var(--color-text-main);
+    --text-muted: var(--color-text-secondary);
+    --border-color: var(--color-border-strong);
+    --bg-body: var(--color-bg-main);
+
+    /* Status: Open */
+    --status-open-text: #5046e5;
+    --status-open-bg: rgba(80, 70, 229, 0.12);
+    --status-open-border: rgba(80, 70, 229, 0.2);
+
+    /* Status: In Progress */
+    --status-progress-text: #7b61ff;
+    --status-progress-bg: rgba(123, 97, 255, 0.12);
+    --status-progress-border: rgba(123, 97, 255, 0.2);
+
+    /* Status: Complete */
+    --status-complete-text: #2e7d32;
+    --status-complete-bg: rgba(46, 125, 50, 0.12);
+    --status-complete-border: rgba(46, 125, 50, 0.2);
+
+    /* Status: Blocked */
+    --status-blocked-text: #f57f17;
+    --status-blocked-bg: rgba(245, 127, 23, 0.12);
+    --status-blocked-border: rgba(245, 127, 23, 0.2);
+
+    /* Current Period Highlight */
+    --current-highlight-bg: #fff8e1;
+    --current-highlight-text: #e6a817;
+
+    /* Dimensions */
+    --header-height: 36px;
+    --row-height: 56px;
+
+    /* ── Gantt Timeline Bar Theme Colors (Light Theme) ── */
+    --gantt-bar-title: #0f172a;
+    --gantt-grip-bg: rgba(0, 0, 0, 0.05);
+    --gantt-grip-stroke: rgba(0, 0, 0, 0.14);
+    --gantt-grip-line: #64748b;
+
+    /* Complete (Emerald) */
+    --gantt-complete-bg: #ecfdf5;
+    --gantt-complete-stroke: #6ee7b7;
+    --gantt-complete-pill: #d1fae5;
+    --gantt-complete-text: #065f46;
+
+    /* In Progress (Indigo) */
+    --gantt-progress-bg: #eef2ff;
+    --gantt-progress-stroke: #a5b4fc;
+    --gantt-progress-pill: #e0e7ff;
+    --gantt-progress-text: #3730a3;
+
+    /* Open (Sky Blue) */
+    --gantt-open-bg: #f0f9ff;
+    --gantt-open-stroke: #7dd3fc;
+    --gantt-open-pill: #e0f2fe;
+    --gantt-open-text: #0369a1;
+
+    /* Blocked (Amber / Orange) */
+    --gantt-blocked-bg: #fff7ed;
+    --gantt-blocked-stroke: #fdba74;
+    --gantt-blocked-pill: #ffedd5;
+    --gantt-blocked-text: #9a3412;
+  }
+}
+
+@mixin theme-dark-variables {
+  [data-theme='dark'],
+  body.dark-theme {
+    /* Brand */
+    --color-brand-primary: #{dark-color(brand-primary)};
+    --color-brand-accent: #{dark-color(brand-accent)};
+    --color-brand-contrast: #0b0f19;
+
+    /* Shadows */
+    --color-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+    --color-card-shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.6);
+    --color-popover-shadow: 0 8px 28px rgba(0, 0, 0, 0.65);
+
+    /* Text */
+    --color-text-main: #{dark-color(text-main)};
+    --color-text-secondary: #{dark-color(text-secondary)};
+    --color-text-tertiary: #64748b;
+    --color-text-danger: #{dark-color(text-danger)};
+
+    /* Backgrounds: Rich contrasting dark shades */
+    --color-bg-main: #{dark-color(bg-main)};
+    --color-bg-secondary: #{dark-color(bg-secondary)};
+    --color-bg-card: #{dark-color(bg-card)};
+    --color-bg-subtle: #{dark-color(bg-subtle)};
+    --color-btn-active: #{dark-color(btn-active)};
+    --color-bg-hover: #{dark-color(bg-hover)};
+    --color-bg-row-even: #{dark-color(bg-row-even)};
+    --color-bg-column: #{dark-color(bg-column)};
+
+    /* Borders */
+    --color-border-light: #{dark-color(border-light)};
+    --color-border-subtle: #{dark-color(border-subtle)};
+    --color-border-medium: #{dark-color(border-medium)};
+    --color-border-strong: #{dark-color(border-strong)};
+
+    /* Navbar */
+    --color-navbar-bg: #{dark-color(navbar-bg)};
+    --color-navbar-border: #{dark-color(navbar-border)};
+
+    /* Component Aliases */
+    --primary-color: var(--color-brand-primary);
+    --text-main: var(--color-text-main);
+    --text-muted: var(--color-text-secondary);
+    --border-color: var(--color-border-strong);
+    --bg-body: var(--color-bg-main);
+
+    /* Status: Open */
+    --status-open-text: #a5b4fc;
+    --status-open-bg: rgba(99, 102, 241, 0.22);
+    --status-open-border: rgba(99, 102, 241, 0.4);
+
+    /* Status: In Progress */
+    --status-progress-text: #c084fc;
+    --status-progress-bg: rgba(168, 85, 247, 0.22);
+    --status-progress-border: rgba(168, 85, 247, 0.4);
+
+    /* Status: Complete */
+    --status-complete-text: #4ade80;
+    --status-complete-bg: rgba(34, 197, 94, 0.2);
+    --status-complete-border: rgba(34, 197, 94, 0.35);
+
+    /* Status: Blocked */
+    --status-blocked-text: #fbbf24;
+    --status-blocked-bg: rgba(245, 158, 11, 0.2);
+    --status-blocked-border: rgba(245, 158, 11, 0.35);
+
+    /* Current Period Highlight */
+    --current-highlight-bg: rgba(251, 191, 36, 0.15);
+    --current-highlight-text: #fde047;
+
+    /* ── Gantt Timeline Bar Theme Colors (Dark Theme — Elevated & High Contrast) ── */
+    --gantt-bar-title: #f8fafc;
+    --gantt-grip-bg: rgba(255, 255, 255, 0.12);
+    --gantt-grip-stroke: rgba(255, 255, 255, 0.25);
+    --gantt-grip-line: #cbd5e1;
+
+    /* Complete (Emerald / Green) */
+    --gantt-complete-bg: #064e3b;
+    --gantt-complete-stroke: #10b981;
+    --gantt-complete-pill: #022c22;
+    --gantt-complete-text: #6ee7b7;
+
+    /* In Progress (Royal Indigo) */
+    --gantt-progress-bg: #1e1b4b;
+    --gantt-progress-stroke: #818cf8;
+    --gantt-progress-pill: #0f0d2b;
+    --gantt-progress-text: #c7d2fe;
+
+    /* Open (Electric Azure / Sky Blue) */
+    --gantt-open-bg: #082f49;
+    --gantt-open-stroke: #38bdf8;
+    --gantt-open-pill: #031e30;
+    --gantt-open-text: #7dd3fc;
+
+    /* Blocked (Amber / Orange) */
+    --gantt-blocked-bg: #431407;
+    --gantt-blocked-stroke: #f97316;
+    --gantt-blocked-pill: #2a0b04;
+    --gantt-blocked-text: #fdba74;
+  }
+}
+
+/* ─── 6. Global Theme Reset & Utility Overrides Mixin ─── */
+
+@mixin theme-global-overrides {
+  [data-theme='dark'] {
+    color-scheme: dark;
+
+    /* Global Dark Scrollbars */
+    *::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    *::-webkit-scrollbar-track {
+      background: var(--color-bg-main);
+    }
+    *::-webkit-scrollbar-thumb {
+      background: var(--color-border-strong);
+      border-radius: 4px;
+    }
+    *::-webkit-scrollbar-thumb:hover {
+      background: var(--color-brand-primary);
+    }
+  }
+
+  [data-theme='light'] {
+    color-scheme: light;
+
+    *::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    *::-webkit-scrollbar-track {
+      background: var(--color-bg-main);
+    }
+    *::-webkit-scrollbar-thumb {
+      background: var(--color-border-medium);
+      border-radius: 4px;
+    }
+    *::-webkit-scrollbar-thumb:hover {
+      background: var(--color-brand-primary);
+    }
+  }
+}
+
+/* ─── 7. Main Entry Loader Mixin ─── */
+@mixin load-theme {
+  @include theme-root-variables;
+  @include theme-dark-variables;
+  @include theme-global-overrides;
+}
+
+/* ─── 8. Theme Utility Classes ─── */
+.theme-card {
+  @extend %theme-card;
+}
+
+.theme-card-subtle {
+  @extend %theme-subtle-card;
+}
+
+.theme-form-control {
+  @extend %theme-input;
+}
+
+.theme-btn-toggle {
+  @extend %theme-btn-toggle;
+}

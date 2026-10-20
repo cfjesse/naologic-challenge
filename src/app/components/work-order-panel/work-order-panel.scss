@@ -1,3 +1,5 @@
+@use 'theme' as theme;
+
 /* ── Slide-Out Panel ── */
 $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 
@@ -5,7 +7,7 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--color-bg-main);
+  background: var(--color-bg-card, #ffffff);
 }
 
 /* ── Header ── */
@@ -64,7 +66,7 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   font-family: $font-family;
   font-size: 13px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--color-brand-contrast, #ffffff);
   background: var(--color-brand-primary);
   border: none;
   border-radius: 6px;
@@ -98,7 +100,7 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   font-family: $font-family;
   font-size: 13px;
   font-weight: 500;
-  color: #8b8fa3;
+  color: var(--color-text-secondary, #8b8fa3);
   margin-bottom: 6px;
 }
 
@@ -110,7 +112,7 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   font-size: 14px;
   font-weight: 400;
   color: var(--color-text-main);
-  background: var(--color-bg-main);
+  background: var(--color-bg-secondary, #ffffff);
   border: 1px solid var(--color-border-strong);
   border-radius: 6px;
   outline: none;
@@ -118,12 +120,12 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   transition: border-color 0.15s ease;
 
   &:focus {
-    border-color: #5046e5;
+    border-color: var(--color-brand-primary, #5046e5);
     box-shadow: 0 0 0 2px rgba(80, 70, 229, 0.1);
   }
 
   &::placeholder {
-    color: #b0b4c8;
+    color: var(--color-text-tertiary, #b0b4c8);
   }
 
   &.invalid {
@@ -157,21 +159,21 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
 }
 
 .status-open {
-  color: #5046e5;
-  background-color: rgba(80, 70, 229, 0.12);
-  border: 1px solid rgba(80, 70, 229, 0.2);
+  color: var(--status-open-text);
+  background-color: var(--status-open-bg);
+  border: 1px solid var(--status-open-border);
 }
 
 .status-in-progress {
-  color: #7b61ff;
-  background-color: rgba(123, 97, 255, 0.12);
-  border: 1px solid rgba(123, 97, 255, 0.2);
+  color: var(--status-progress-text);
+  background-color: var(--status-progress-bg);
+  border: 1px solid var(--status-progress-border);
 }
 
 .status-complete {
-  color: #2e7d32;
-  background-color: rgba(46, 125, 50, 0.12);
-  border: 1px solid rgba(46, 125, 50, 0.2);
+  color: var(--status-complete-text);
+  background-color: var(--status-complete-bg);
+  border: 1px solid var(--status-complete-border);
 }
 
 .status-blocked {
@@ -274,13 +276,16 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   border-radius: 6px;
   min-height: 42px;
   background: var(--color-bg-secondary, #ffffff);
+  color: var(--color-text-main);
 }
 
 ::ng-deep .ng-select.status-ng-select.ng-select-opened .ng-select-container {
-  border-color: #5046e5;
+  border-color: var(--color-brand-primary, #5046e5);
   box-shadow: 0 0 0 2px rgba(80, 70, 229, 0.1);
 }
 
 ::ng-deep .ng-select .ng-arrow-wrapper .ng-arrow {
-  border-color: #8b8fa3 transparent transparent;
+  border-color: var(--color-text-secondary, #8b8fa3) transparent transparent;
 }
+
+

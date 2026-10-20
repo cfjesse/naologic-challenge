@@ -1,3 +1,5 @@
+@use 'theme' as theme;
+
 $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 
 :host {
@@ -51,8 +53,8 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   font-family: $font-family;
   font-size: 13px;
   font-weight: 500;
-  background: rgba(80, 70, 229, 0.04);
-  border: 1px solid rgba(80, 70, 229, 0.14);
+  background: var(--color-bg-card, #ffffff);
+  border: 1px solid var(--color-border-strong, #e8e8f0);
   color: var(--color-text-main, #1b1f3b);
   cursor: pointer;
   transition: all 0.15s ease;
@@ -62,24 +64,24 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
     font-weight: 700;
     padding: 1px 6px;
     border-radius: 10px;
-    background: rgba(80, 70, 229, 0.1);
-    color: #5046e5;
+    background: var(--status-open-bg, rgba(80, 70, 229, 0.1));
+    color: var(--color-brand-primary, #5046e5);
   }
 
   &:hover {
-    background: rgba(80, 70, 229, 0.08);
-    border-color: rgba(80, 70, 229, 0.3);
+    background: var(--color-bg-hover, #f3f3fa);
+    border-color: var(--color-brand-primary, #5046e5);
   }
 
   &.active {
-    background: #5046e5;
-    border-color: #5046e5;
-    color: #ffffff;
+    background: var(--color-brand-primary, #5046e5);
+    border-color: var(--color-brand-primary, #5046e5);
+    color: var(--color-brand-contrast, #ffffff);
     box-shadow: 0 2px 8px rgba(80, 70, 229, 0.25);
 
     .chip-count {
-      background: rgba(255, 255, 255, 0.25);
-      color: #ffffff;
+      background: rgba(0, 0, 0, 0.2);
+      color: var(--color-brand-contrast, #ffffff);
     }
   }
 }
@@ -110,8 +112,8 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
     transition: all 0.15s ease;
 
     &:focus {
-      border-color: #5046e5;
-      box-shadow: 0 0 0 3px rgba(80, 70, 229, 0.1);
+      border-color: var(--color-brand-primary, #5046e5);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
     }
   }
 }
@@ -475,7 +477,7 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
 /* ──────── Columns ──────── */
 .kanban-column {
   background: var(--color-bg-column, #f8f8fc);
-  border: 1px solid var(--color-border-medium, #ebebf5);
+  border: 1px solid var(--color-border-strong, #ebebf5);
   border-radius: 12px;
   padding: 16px;
   min-height: 550px;
@@ -484,9 +486,9 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   transition: all 0.18s ease;
 
   &.drag-over {
-    background: rgba(80, 70, 229, 0.05);
-    border-color: #5046e5;
-    box-shadow: 0 0 0 2px rgba(80, 70, 229, 0.2) inset;
+    background: var(--status-open-bg, rgba(80, 70, 229, 0.05));
+    border-color: var(--color-brand-primary, #5046e5);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) inset;
   }
 }
 
@@ -496,7 +498,7 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   justify-content: space-between;
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.05));
 }
 
 .column-title-box {
@@ -509,10 +511,10 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
     height: 8px;
     border-radius: 50%;
 
-    &.badge-open { background: #6366f1; }
-    &.badge-in-progress { background: #3b82f6; }
-    &.badge-blocked { background: #ef4444; }
-    &.badge-complete { background: #22c55e; }
+    &.badge-open { background: var(--status-open-text, #6366f1); }
+    &.badge-in-progress { background: var(--status-progress-text, #3b82f6); }
+    &.badge-blocked { background: var(--status-blocked-text, #ef4444); }
+    &.badge-complete { background: var(--status-complete-text, #22c55e); }
   }
 
   .column-title {
@@ -527,7 +529,7 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
     font-weight: 700;
     color: var(--color-text-secondary, #8b8fa3);
     background: var(--color-bg-card, #ffffff);
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    border: 1px solid var(--color-border-strong, rgba(0, 0, 0, 0.08));
     padding: 1px 7px;
     border-radius: 10px;
   }
@@ -547,9 +549,9 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   transition: all 0.15s ease;
 
   &:hover {
-    color: #5046e5;
-    border-color: #5046e5;
-    background: rgba(80, 70, 229, 0.06);
+    color: var(--color-brand-primary, #5046e5);
+    border-color: var(--color-brand-primary, #5046e5);
+    background: var(--color-bg-hover, rgba(80, 70, 229, 0.06));
     transform: scale(1.05);
   }
 }
@@ -564,17 +566,17 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
 /* ──────── Card ──────── */
 .kanban-card {
   background: var(--color-bg-card, #ffffff);
-  border: 1px solid var(--color-border-light, #ebebf3);
+  border: 1px solid var(--color-border-strong, #ebebf3);
   border-radius: 10px;
   padding: 14px 16px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--color-card-shadow, 0 1px 4px rgba(0, 0, 0, 0.04));
   cursor: grab;
   transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
 
   &:hover {
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+    box-shadow: var(--color-card-shadow-hover, 0 4px 14px rgba(0, 0, 0, 0.08));
     transform: translateY(-2px);
-    border-color: rgba(80, 70, 229, 0.25);
+    border-color: var(--color-brand-primary, #5046e5);
   }
 
   &.dragging {
@@ -595,12 +597,12 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #5046e5;
+  color: var(--color-brand-primary, #5046e5);
 
   .wc-select {
-    border: none;
-    background: rgba(80, 70, 229, 0.06);
-    color: #5046e5;
+    border: 1px solid var(--color-border-subtle, rgba(80, 70, 229, 0.1));
+    background: var(--color-bg-subtle, rgba(80, 70, 229, 0.06));
+    color: var(--color-brand-primary, #5046e5);
     font-family: $font-family;
     font-size: 11.5px;
     font-weight: 600;
@@ -610,15 +612,16 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
     outline: none;
 
     &:hover {
-      background: rgba(80, 70, 229, 0.12);
+      background: var(--color-bg-hover, rgba(80, 70, 229, 0.12));
     }
   }
 
   .wc-static-label {
     font-size: 11.5px;
     font-weight: 600;
-    background: rgba(80, 70, 229, 0.06);
-    color: #5046e5;
+    background: var(--color-bg-subtle, rgba(80, 70, 229, 0.06));
+    color: var(--color-brand-primary, #5046e5);
+    border: 1px solid var(--color-border-subtle, rgba(80, 70, 229, 0.1));
     padding: 2px 6px;
     border-radius: 4px;
   }
@@ -726,8 +729,8 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   margin-top: 8px;
   padding: 8px;
   border-radius: 6px;
-  background: #f8f8fc;
-  border: 1px solid #e8e8f0;
+  background: var(--color-bg-card, #f8f8fc);
+  border: 1px solid var(--color-border-strong, #e8e8f0);
 
   .date-inputs-row {
     display: flex;
@@ -741,7 +744,7 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
     .date-label {
       font-size: 10.5px;
       font-weight: 600;
-      color: #8b8fa3;
+      color: var(--color-text-secondary, #8b8fa3);
       display: block;
       margin-bottom: 2px;
     }
@@ -751,13 +754,15 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
       height: 28px;
       font-size: 11px;
       font-family: $font-family;
-      border: 1px solid #dcdce8;
+      border: 1px solid var(--color-border-medium, #dcdce8);
       border-radius: 4px;
       padding: 0 4px;
+      background: var(--color-bg-secondary, #ffffff);
+      color: var(--color-text-main, #1b1f3b);
       outline: none;
 
       &:focus {
-        border-color: #5046e5;
+        border-color: var(--color-brand-primary, #5046e5);
       }
     }
   }
@@ -778,8 +783,8 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
     }
 
     .btn-date-save {
-      background: #5046e5;
-      color: white;
+      background: var(--color-brand-primary, #5046e5);
+      color: var(--color-brand-contrast, #ffffff);
 
       &:hover {
         background: #4338ca;
@@ -787,11 +792,11 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
     }
 
     .btn-date-cancel {
-      background: #e8e8f0;
-      color: #1b1f3b;
+      background: var(--color-bg-subtle, #e8e8f0);
+      color: var(--color-text-main, #1b1f3b);
 
       &:hover {
-        background: #dcdce8;
+        background: var(--color-bg-hover, #dcdce8);
       }
     }
   }
@@ -816,3 +821,5 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
     font-weight: 500;
   }
 }
+
+

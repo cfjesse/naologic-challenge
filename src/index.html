@@ -12,20 +12,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-  <script>
-    (function() {
-      try {
-        var theme = sessionStorage.getItem('theme');
-        if (!theme) {
-          var s = sessionStorage.getItem('naologic_erp_settings');
-          if (s) { theme = JSON.parse(s).theme; }
-        }
-        if (theme === 'dark') {
-          document.documentElement.setAttribute('data-theme', 'dark');
-        }
-      } catch(e) {}
-    })();
-  </script>
 </head>
 
 <body>

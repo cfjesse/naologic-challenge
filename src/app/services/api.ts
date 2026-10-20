@@ -4,6 +4,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { Observable, of } from 'rxjs';
 import { catchError, tap } from 'rxjs/operators';
 import { TimeScale, WorkOrderDocument, WorkCenterDocument, WorkOrderStatus } from '../models/work-order.model';
+import { ThemeService, AppTheme } from './theme.service';
 
 export interface AppSettings {
   timeScale: TimeScale;
@@ -15,6 +16,7 @@ export interface AppSettings {
 })
 export class ApiService {
   private readonly http = inject(HttpClient);
+  readonly themeService = inject(ThemeService);
   private readonly SETTINGS_STORAGE_KEY = 'naologic_erp_settings';
 
   private readonly baseUrl = (typeof window !== 'undefined' && window.location.hostname && window.location.hostname !== 'localhost')
@@ -23,7 +25,7 @@ export class ApiService {
 
   /* ── Session Storage Helpers ── */
   loadSettingsFromSession(): AppSettings {
-    const defaultSettings: AppSettings = { timeScale: 'Day', theme: 'light' };
+    const defaultSettings: AppSettings = { timeScale: 'Day', theme: this.themeService.theme() };
     if (typeof window !== 'undefined' && window.sessionStorage) {
       try {
         const storedTheme = window.sessionStorage.getItem('theme') as 'light' | 'dark' | null;
@@ -66,21 +68,14 @@ export class ApiService {
         console.warn('ApiService: Error clearing settings from sessionStorage', err);
       }
     }
-    const defaultSettings: AppSettings = { timeScale: 'Day', theme: 'light' };
+    const defaultSettings: AppSettings = { timeScale: 'Day', theme: 'dark' };
     this._settingsState.set(defaultSettings);
-    this.applyTheme(defaultSettings.theme);
+    this.themeService.setTheme('dark');
   }
 
-  /* ── Theme DOM Application ── */
+  /* ── Theme Delegation to Signal ThemeService ── */
   applyTheme(theme: 'light' | 'dark'): void {
-    if (typeof document !== 'undefined') {
-      document.documentElement.setAttribute('data-theme', theme);
-      if (theme === 'dark') {
-        document.body.classList.add('dark-theme');
-      } else {
-        document.body.classList.remove('dark-theme');
-      }
-    }
+    this.themeService.setTheme(theme);
   }
 
   /* ── Reactive State & Resources ── */
@@ -115,7 +110,7 @@ export class ApiService {
   });
 
   readonly currentTheme = computed<'light' | 'dark'>(() => {
-    return this.settingsSignal()?.theme ?? 'light';
+    return this.themeService.theme();
   });
 
   readonly ordersSignal = this.ordersResource.value;
@@ -125,14 +120,12 @@ export class ApiService {
   );
 
   constructor() {
-    // Apply initial theme immediately to prevent light/dark flicker
-    const initial = this.loadSettingsFromSession();
-    this.applyTheme(initial.theme);
-
-    // Reactively ensure DOM attribute and class update on any theme change
+    // When remote settings resolve with a theme, sync with ThemeService
     effect(() => {
-      const theme = this.currentTheme();
-      this.applyTheme(theme);
+      const remoteSettings = this.settingsResource.value();
+      if (remoteSettings?.theme && (remoteSettings.theme === 'light' || remoteSettings.theme === 'dark')) {
+        this.themeService.setTheme(remoteSettings.theme);
+      }
     });
   }
 
@@ -193,17 +186,13 @@ export class ApiService {
   }
 
   setTheme(theme: 'light' | 'dark'): Observable<AppSettings> {
-    if (typeof window !== 'undefined' && window.sessionStorage) {
-      try {
-        window.sessionStorage.setItem('theme', theme);
-      } catch (err) {}
-    }
+    this.themeService.setTheme(theme);
     return this.updateSettings({ theme });
   }
 
   toggleTheme(): Observable<AppSettings> {
-    const nextTheme: 'light' | 'dark' = this.currentTheme() === 'dark' ? 'light' : 'dark';
-    return this.setTheme(nextTheme);
+    const nextTheme: 'light' | 'dark' = this.themeService.toggleTheme();
+    return this.updateSettings({ theme: nextTheme });
   }
 
   // Lookups & Dropdowns

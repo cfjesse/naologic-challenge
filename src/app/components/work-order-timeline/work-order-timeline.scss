@@ -1,3 +1,5 @@
+@use 'theme' as theme;
+
 /*
   Naologic ERP Work Orders — D3 SVG Gantt Chart
   Font: Circular-Std from naologic-com-assets.naologic.com
@@ -374,10 +376,12 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
       background: rgba(80, 70, 229, 0.08);
       color: #5046e5;
     }
+
     &.icon-generate {
       background: rgba(16, 185, 129, 0.1);
       color: #059669;
     }
+
     &.icon-reset {
       background: rgba(245, 158, 11, 0.1);
       color: #d97706;
@@ -438,6 +442,7 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
     opacity: 0;
     transform: translateY(12px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -729,9 +734,11 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
     &.value-green {
       color: #059669;
     }
+
     &.value-red {
       color: #dc2626;
     }
+
     &.value-purple {
       color: #7c3aed;
     }
@@ -847,8 +854,15 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
 }
 
 @keyframes alertFadeIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ──────── Gantt Grid Container with 8px Gap ──────── */
@@ -861,6 +875,7 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   min-height: 420px;
   position: relative;
   transition: grid-template-columns 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  margin: 16px 32px 0 32px;
 
   &.collapsed {
     grid-template-columns: 68px 1fr;
@@ -1148,26 +1163,31 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   color: #3730a3;
   border: 1px solid #a5b4fc;
 }
+
 .color-station-2 {
   background: linear-gradient(135deg, #cffafe 0%, #a5f3fc 100%);
   color: #155e75;
   border: 1px solid #67e8f9;
 }
+
 .color-station-3 {
   background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
   color: #5b21b6;
   border: 1px solid #c4b5fd;
 }
+
 .color-station-4 {
   background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%);
   color: #9a3412;
   border: 1px solid #fdba74;
 }
+
 .color-station-5 {
   background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
   color: #065f46;
   border: 1px solid #6ee7b7;
 }
+
 .color-station-default {
   background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
   color: #334155;
@@ -1330,6 +1350,7 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
     opacity: 0;
     transform: translateY(-50%) translateX(-6px);
   }
+
   to {
     opacity: 1;
     transform: translateY(-50%) translateX(0);
@@ -1362,6 +1383,7 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   /* HIDE NATIVE BROWSER SCROLLBAR — replaced by custom bar underneath */
   scrollbar-width: none;
   -ms-overflow-style: none;
+
   &::-webkit-scrollbar {
     display: none;
     width: 0;
@@ -1369,26 +1391,27 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   }
 }
 
-/* ──────── SVG Chart ──────── */
-.gantt-svg {
-  display: block;
-  flex-shrink: 0;
-  background-color: var(--color-bg-main);
-}
-
-/* ──────── SVG Grid ──────── */
-rect.row-bg {
-  fill: var(--color-bg-main, #ffffff);
-  transition: fill 0.1s ease;
-
-  &.even {
-    fill: var(--color-bg-row-even);
+/* ──────── SVG Chart (D3 Dynamic Content Scoped to Component) ──────── */
+:host ::ng-deep {
+  .gantt-svg {
+    display: block;
+    flex-shrink: 0;
+    background-color: var(--color-bg-main);
   }
 
-  &.hovered {
-    fill: var(--color-bg-hover, #f4f4f5) !important;
+  /* ──────── SVG Grid ──────── */
+  rect.row-bg {
+    fill: var(--color-bg-main, #ffffff);
+    transition: fill 0.1s ease;
+
+    &.even {
+      fill: var(--color-bg-row-even);
+    }
+
+    &.hovered {
+      fill: var(--color-bg-hover, #f4f4f5);
+    }
   }
-}
 
 line.grid-line {
   stroke: var(--color-border-light);
@@ -1403,7 +1426,8 @@ line.row-border {
 line.cursor-line {
   stroke: #5046e5;
   stroke-width: 2px;
-  pointer-events: none; /* Let drag events hit the group or handle */
+  pointer-events: none;
+  /* Let drag events hit the group or handle */
 }
 
 circle.cursor-handle {
@@ -1507,10 +1531,21 @@ rect.bar-rect {
 }
 
 rect.status-pill-bg {
-  &.pill-complete { fill: var(--gantt-complete-pill, #d1fae5); }
-  &.pill-in-progress { fill: var(--gantt-progress-pill, #e0e7ff); }
-  &.pill-open { fill: var(--gantt-open-pill, #e0f2fe); }
-  &.pill-blocked { fill: var(--gantt-blocked-pill, #ffedd5); }
+  &.pill-complete {
+    fill: var(--gantt-complete-pill, #d1fae5);
+  }
+
+  &.pill-in-progress {
+    fill: var(--gantt-progress-pill, #e0e7ff);
+  }
+
+  &.pill-open {
+    fill: var(--gantt-open-pill, #e0f2fe);
+  }
+
+  &.pill-blocked {
+    fill: var(--gantt-blocked-pill, #ffedd5);
+  }
 }
 
 rect.resize-handle {
@@ -1526,7 +1561,7 @@ rect.resize-handle {
 
 .grip-group {
   pointer-events: none;
-  
+
   rect.grip-bg {
     fill: var(--gantt-grip-bg, rgba(0, 0, 0, 0.05));
     stroke: var(--gantt-grip-stroke, rgba(0, 0, 0, 0.1));
@@ -1547,6 +1582,7 @@ g.bar-group:hover {
     opacity: 0.15;
     stroke: var(--color-brand-primary);
   }
+
   .grip-group line.grip-line {
     stroke: var(--color-brand-primary);
   }
@@ -1568,10 +1604,21 @@ text.bar-status-label {
   pointer-events: none;
   user-select: none;
 
-  &.status-complete { fill: var(--gantt-complete-text, #065f46); }
-  &.status-in-progress { fill: var(--gantt-progress-text, #3730a3); }
-  &.status-open { fill: var(--gantt-open-text, #0369a1); }
-  &.status-blocked { fill: var(--gantt-blocked-text, #9a3412); }
+  &.status-complete {
+    fill: var(--gantt-complete-text, #065f46);
+  }
+
+  &.status-in-progress {
+    fill: var(--gantt-progress-text, #3730a3);
+  }
+
+  &.status-open {
+    fill: var(--gantt-open-text, #0369a1);
+  }
+
+  &.status-blocked {
+    fill: var(--gantt-blocked-text, #9a3412);
+  }
 }
 
 text.bar-ellipsis {
@@ -1587,6 +1634,7 @@ text.bar-ellipsis {
   &:hover {
     fill: var(--color-brand-primary);
   }
+}
 }
 
 /* ──────── Ellipsis Dropdown Menu ──────── */
@@ -1726,8 +1774,15 @@ text.bar-ellipsis {
 }
 
 @keyframes rowSlideIn {
-  from { opacity: 0; transform: translateX(-12px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 /* ── Ghost Bar Preview (Matches SVG Style) ── */
@@ -1749,14 +1804,17 @@ text.bar-ellipsis {
     background: linear-gradient(90deg, #6366f1 0%, #818cf8 100%);
     border: 1px solid rgba(255, 255, 255, 0.2);
   }
+
   &.preview-in-progress {
     background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
     border: 1px solid rgba(255, 255, 255, 0.2);
   }
+
   &.preview-complete {
     background: linear-gradient(90deg, #22c55e 0%, #4ade80 100%);
     border: 1px solid rgba(255, 255, 255, 0.2);
   }
+
   &.preview-blocked {
     background: linear-gradient(90deg, #ef4444 0%, #f87171 100%);
     border: 1px solid rgba(255, 255, 255, 0.2);
@@ -1794,8 +1852,13 @@ text.bar-ellipsis {
     background: rgba(255, 255, 255, 0.4);
     border-radius: 1px;
 
-    &.ghost-grip-left { left: 5px; }
-    &.ghost-grip-right { right: 5px; }
+    &.ghost-grip-left {
+      left: 5px;
+    }
+
+    &.ghost-grip-right {
+      right: 5px;
+    }
   }
 }
 
@@ -1929,14 +1992,21 @@ text.bar-ellipsis {
         stroke: currentColor;
       }
 
-      &:hover {
+      &:hover:not(:disabled):not(.disabled) {
         background: var(--color-brand-primary, #5046e5);
         color: #ffffff;
         border-color: var(--color-brand-primary, #5046e5);
       }
 
-      &:active {
+      &:active:not(:disabled):not(.disabled) {
         transform: scale(0.92);
+      }
+
+      &:disabled,
+      &.disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+        pointer-events: none;
       }
     }
 
@@ -2178,5 +2248,311 @@ text.bar-ellipsis {
   }
 }
 
+/* ══════════════════════════════════════════════════════════════
+   RESPONSIVE DESIGN (TABLET & MOBILE, PORTRAIT & LANDSCAPE)
+   ══════════════════════════════════════════════════════════════ */
 
+/* ── 1. Tablet Landscape & Intermediate Desktops (<= 1024px) ── */
+@media (max-width: 1024px) {
+  .timeline-header {
+    padding: 18px 20px 14px;
+    gap: 16px;
+  }
 
+  .header-content-left {
+    gap: 10px;
+  }
+
+  .header-title-row {
+    gap: 14px;
+  }
+
+  .page-title {
+    font-size: 24px;
+  }
+
+  .analytics-content-grid {
+    grid-template-columns: 240px 1fr;
+    gap: 14px;
+    padding: 14px 16px;
+
+    .kpi-panel {
+      grid-column: 1 / -1;
+      border-top: 1px solid var(--color-border-subtle, #f1f5f9);
+      padding-top: 14px;
+    }
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .timeline-integrated-scrollbar {
+    padding: 7px 12px;
+
+    .scrollbar-options-row {
+      gap: 10px;
+    }
+  }
+}
+
+/* ── 2. Tablet Portrait & Large Mobile (<= 768px) ── */
+@media (max-width: 768px) {
+  .timeline-header {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 14px 16px 12px;
+    gap: 14px;
+  }
+
+  .header-content-left {
+    width: 100%;
+  }
+
+  .header-title-row {
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    gap: 10px;
+  }
+
+  .page-title {
+    font-size: 22px;
+  }
+
+  .view-mode-toggle {
+    margin-left: auto;
+  }
+
+  .main-content-wrapper {
+    width: 100%;
+    margin-top: 2px;
+  }
+
+  .timescale-wrapper {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 8px;
+
+    .timescale-control {
+      flex: 1 1 50%;
+    }
+
+    .status-filter-control {
+      flex: 1 1 50%;
+      margin-left: 0;
+    }
+  }
+
+  .header-content-right {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    width: 100%;
+
+    .data-menu-container {
+      order: 1;
+    }
+
+    .btn-primary-add {
+      order: 2;
+      margin-right: 0;
+    }
+
+    .btn-today {
+      order: 3;
+      margin-right: 0;
+    }
+  }
+
+  .analytics-content-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 12px 14px;
+
+    .chart-panel,
+    .workload-panel {
+      border-right: none;
+      padding-right: 0;
+      border-bottom: 1px solid var(--color-border-subtle, #f1f5f9);
+      padding-bottom: 14px;
+    }
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+
+    .card-full {
+      grid-column: 1 / -1;
+    }
+  }
+
+  /* Scrubber bar on tablet/mobile */
+  .timeline-integrated-scrollbar {
+    padding: 8px 12px;
+    gap: 8px;
+
+    .scrollbar-options-row {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+
+      .step-options-group {
+        justify-content: space-between;
+        width: 100%;
+      }
+
+      .scrollbar-status-group {
+        justify-content: space-between;
+        width: 100%;
+        margin-left: 0;
+      }
+    }
+  }
+
+  /* Compact left panel by default on mobile */
+  .gantt-grid {
+    &.collapsed {
+      grid-template-columns: 60px 1fr;
+    }
+  }
+}
+
+/* ── 3. Small Mobile Portrait (<= 480px) ── */
+@media (max-width: 480px) {
+  .timeline-header {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .header-title-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+
+    .page-title {
+      font-size: 20px;
+    }
+
+    .view-mode-toggle {
+      width: 100%;
+      margin-left: 0;
+      display: flex;
+
+      .btn-view-toggle {
+        flex: 1;
+        justify-content: center;
+        padding: 6px 8px;
+        font-size: 11.5px;
+      }
+    }
+  }
+
+  .timescale-wrapper {
+    flex-direction: column;
+    gap: 6px;
+
+    .timescale-control,
+    .status-filter-control {
+      width: 100%;
+      flex: none;
+    }
+  }
+
+  .header-content-right {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+
+    .data-menu-container,
+    .btn-data-menu,
+    .btn-primary-add,
+    .btn-today {
+      width: 100%;
+      justify-content: center;
+      text-align: center;
+    }
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .donut-chart-container {
+    width: 90px;
+    height: 90px;
+  }
+
+  .timeline-integrated-scrollbar {
+    .scrollbar-options-row {
+      .step-options-group {
+        .options-label {
+          display: none;
+        }
+
+        .step-chips {
+          flex: 1;
+          justify-content: space-between;
+
+          .chip-step {
+            flex: 1;
+            text-align: center;
+            padding: 3px 4px;
+            font-size: 10px;
+          }
+        }
+      }
+    }
+  }
+}
+
+/* ── 4. Mobile & Tablet Landscape (Compact Height) ── */
+@media (max-height: 520px) and (orientation: landscape) {
+  .timeline-header {
+    padding: 8px 16px 6px;
+    gap: 8px;
+  }
+
+  .header-title-row {
+    gap: 10px;
+
+    .page-title {
+      font-size: 18px;
+    }
+  }
+
+  .brand {
+    display: none;
+  }
+
+  .timeline-analytics-card {
+    margin-bottom: 8px;
+
+    .analytics-card-header {
+      padding: 6px 12px;
+    }
+
+    .analytics-content-grid {
+      padding: 8px 12px;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+  }
+
+  .timeline-integrated-scrollbar {
+    padding: 4px 10px;
+
+    .btn-scrub-nav {
+      width: 26px;
+      height: 26px;
+    }
+
+    .scrollbar-options-row {
+      display: none; // Keep Gantt view unobstructed in compact mobile landscape
+    }
+  }
+}

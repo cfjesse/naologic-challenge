@@ -34,9 +34,9 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
     // However, user asked for items to fade in/out specifically.
     // Let's add itemAnimation for leave transition which listAnimation query supports but explicit is nice.
     trigger('itemAnimation', [
-       transition(':leave', [
-         animate('200ms ease-in', style({ opacity: 0, transform: 'scale(0.95)' }))
-       ])
+      transition(':leave', [
+        animate('200ms ease-in', style({ opacity: 0, transform: 'scale(0.95)' }))
+      ])
     ])
   ]
 })

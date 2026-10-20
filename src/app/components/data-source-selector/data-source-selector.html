@@ -44,7 +44,7 @@
   </header>
 
   <div class="cards-grid">
-    <div class="source-card" [class.active]="api.currentTheme() === 'light'" (click)="setTheme('light')">
+    <div class="source-card" [class.active]="themeService.theme() === 'light'" (click)="setTheme('light')">
       <div class="card-icon theme-light-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="5"></circle>
@@ -61,13 +61,13 @@
       <div class="card-content">
         <h3>Light Theme</h3>
         <p>Clean, crisp high-contrast layout optimized for daytime productivity.</p>
-        @if (api.currentTheme() === 'light') {
+        @if (themeService.theme() === 'light') {
           <span class="status-badge">ACTIVE</span>
         }
       </div>
     </div>
 
-    <div class="source-card" [class.active]="api.currentTheme() === 'dark'" (click)="setTheme('dark')">
+    <div class="source-card" [class.active]="themeService.theme() === 'dark'" (click)="setTheme('dark')">
       <div class="card-icon theme-dark-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
@@ -76,7 +76,7 @@
       <div class="card-content">
         <h3>Dark Theme</h3>
         <p>Sleek, low-glare dark aesthetics designed for night owls and focused work.</p>
-        @if (api.currentTheme() === 'dark') {
+        @if (themeService.theme() === 'dark') {
           <span class="status-badge">ACTIVE</span>
         }
       </div>

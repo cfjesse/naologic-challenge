@@ -12,7 +12,6 @@ import {
   Output,
   EventEmitter,
   inject,
-  ViewEncapsulation,
   effect,
   computed,
 } from '@angular/core';
@@ -79,7 +78,6 @@ interface BarDatum {
   ],
   templateUrl: './work-order-timeline.html',
   styleUrl: './work-order-timeline.scss',
-  encapsulation: ViewEncapsulation.None,
 })
 export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewInit {
   private _refreshTrigger = false;
@@ -303,6 +301,7 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
   /* ── Timeline Scroll Slider & Step Navigation ── */
   scrollStepDays = 7; // Default: 1 Week
   timelineScrollPercent = 0;
+  sliderStepPercent = 0.5;
   visibleDateRange = { start: '', end: '' };
 
   /* ── Layout constants ── */
@@ -404,6 +403,9 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
   }
 
   ngOnInit(): void {
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+      this.isWorkCenterCollapsed = true;
+    }
     this.initViewport();
     // Populate dropdowns from API
     this.api.getTimescales().subscribe(scales => {
@@ -465,7 +467,10 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
      ══════════════════════════════════════════════ */
 
   private initViewport(): void {
-    const start = calculateInitialStart(this.store.filteredWorkOrders(), this.timeScale);
+    const orders = this.store.filteredWorkOrders().length > 0 
+      ? this.store.filteredWorkOrders() 
+      : this.store.workOrders();
+    const start = calculateInitialStart(orders, this.timeScale);
     this.viewportStart = start;
     this.viewportEnd = this.calculateMinimumEnd(start);
   }
@@ -480,7 +485,7 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
 
   private ensureMinimumColumns(): void {
     const minimumEnd = this.calculateMinimumEnd(this.viewportStart);
-    if (this.viewportEnd.getTime() < minimumEnd.getTime()) {
+    if (!this.viewportEnd || this.viewportEnd.getTime() < minimumEnd.getTime()) {
       this.viewportEnd = minimumEnd;
     }
   }
@@ -510,10 +515,22 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
   renderChart(): void {
     if (!this.svg) return;
 
+    const orders = this.store.filteredWorkOrders().length > 0 
+      ? this.store.filteredWorkOrders() 
+      : this.store.workOrders();
+    const earliestStart = calculateInitialStart(orders, this.timeScale);
+
+    if (!this.viewportStart || this.viewportStart.getTime() !== earliestStart.getTime()) {
+      this.viewportStart = earliestStart;
+      const minEnd = this.calculateMinimumEnd(earliestStart);
+      if (!this.viewportEnd || this.viewportEnd.getTime() < minEnd.getTime()) {
+        this.viewportEnd = minEnd;
+      }
+    }
+
     this.ensureMinimumColumns();
 
     const workCenters = this.store.workCenters();
-    const orders = this.store.filteredWorkOrders();
     const now = this.cursorDate; // Use cursorDate instead of new Date()
     const interval = getInterval(this.timeScale);
 
@@ -953,6 +970,9 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
 
     // Helper method for updating order dates - NOW SHOWS MODAL
     const updateOrderDates = (order: Models.WorkOrderDocument, newStart: Date, newEnd: Date) => {
+      if (newStart < self.viewportStart) {
+        newStart = self.viewportStart;
+      }
       const newStartIso = toIso(roundToDay(newStart));
       const newEndIso = toIso(roundToDay(newEnd));
       
@@ -1004,7 +1024,7 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
       })
       .on('drag', function (event, d) {
         if (!self._dragOrigStart || !self._dragOrigEnd) return;
-        d.x = event.x - self.dragOffsetX;
+        d.x = Math.max(0, event.x - self.dragOffsetX);
         d3.select(this).attr('transform', `translate(${d.x}, ${d.y})`);
 
         if (event.sourceEvent) {
@@ -1065,7 +1085,7 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
         self.cdr.detectChanges();
       })
       .on('drag', function (event, d) {
-        const proposedX = event.x - self.dragOffsetX;
+        const proposedX = Math.max(0, event.x - self.dragOffsetX);
         const dx = proposedX - d.x;
         
         self.ghostBar.x = proposedX;
@@ -1448,11 +1468,18 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
     this.cursorDate = now; // Reset cursor to Now
     const interval = getInterval(this.timeScale);
     const columnsPerScreen = getColumnsPerScreen();
-    const totalColumns = columnsPerScreen * 3;
-    const halfColumns = Math.floor(totalColumns / 2);
 
-    this.viewportStart = interval.offset(interval.floor(now), -halfColumns);
-    this.viewportEnd = interval.offset(this.viewportStart, totalColumns);
+    // The timeline starts at the earliest date in the available work orders
+    const orders = this.store.filteredWorkOrders().length > 0 
+      ? this.store.filteredWorkOrders() 
+      : this.store.workOrders();
+    const earliestStart = calculateInitialStart(orders, this.timeScale);
+    this.viewportStart = earliestStart;
+
+    // Ensure viewportEnd extends to include today if today is after viewportEnd
+    const minimumEnd = this.calculateMinimumEnd(earliestStart);
+    const nowEnd = interval.offset(interval.floor(now), columnsPerScreen);
+    this.viewportEnd = new Date(Math.max(minimumEnd.getTime(), nowEnd.getTime()));
 
     this.renderChart();
     this.updateActiveOrders();
@@ -1482,13 +1509,45 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
   }
 
   /* ── Timeline Navigation & Scrubber Methods ── */
+  getScrollStepPixels(): number {
+    if (!this.xScale || !this.viewportStart) return this.COLUMN_MIN_WIDTH;
+    const d1 = this.viewportStart;
+    const d2 = DateTime.fromJSDate(d1).plus({ days: this.scrollStepDays }).toJSDate();
+    const px = Math.abs(this.xScale(d2) - this.xScale(d1));
+    return Math.max(10, px);
+  }
+
+  updateSliderStep(): void {
+    const wrapper = this.ganttWrapperRef?.nativeElement;
+    if (!wrapper) return;
+    const maxScroll = wrapper.scrollWidth - wrapper.clientWidth;
+    if (maxScroll > 0) {
+      const stepPx = this.getScrollStepPixels();
+      this.sliderStepPercent = Math.max(0.01, Math.min(50, (stepPx / maxScroll) * 100));
+    } else {
+      this.sliderStepPercent = 0.5;
+    }
+    this.cdr.markForCheck();
+  }
+
   setScrollStep(days: number): void {
     this.scrollStepDays = Math.max(1, Math.min(180, days));
+    this.updateSliderStep();
+    // Execute scroll forward by this selected amount
+    this.scrollTimeline(1);
   }
 
   onCustomStepChange(val: number): void {
-    if (val && !isNaN(val)) {
+    if (val && !isNaN(val) && val >= 1) {
       this.scrollStepDays = Math.max(1, Math.min(180, val));
+      this.updateSliderStep();
+    }
+  }
+
+  applyCustomStep(): void {
+    if (this.scrollStepDays >= 1) {
+      this.updateSliderStep();
+      this.scrollTimeline(1);
     }
   }
 
@@ -1504,15 +1563,33 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
     const wrapper = this.ganttWrapperRef?.nativeElement;
     if (!wrapper || !this.xScale) return;
 
-    // Calculate pixel distance for scrollStepDays
-    const d1 = this.viewportStart;
-    const d2 = DateTime.fromJSDate(d1).plus({ days: this.scrollStepDays }).toJSDate();
-    const pixelDistance = Math.max(20, Math.abs(this.xScale(d2) - this.xScale(d1)));
+    const pixelDistance = this.getScrollStepPixels();
     const delta = pixelDistance * direction;
+    let targetScroll = Math.max(0, wrapper.scrollLeft + delta);
 
-    wrapper.scrollBy({ left: delta, behavior: 'smooth' });
-    this.updateTimelineScrollSlider();
+    // Expand viewport if nearing the right edge buffer
+    const buffer = this.COLUMN_MIN_WIDTH * 2;
+    if (direction === 1 && targetScroll + wrapper.clientWidth >= wrapper.scrollWidth - buffer) {
+      const interval = getInterval(this.timeScale);
+      const columnsPerScreen = getColumnsPerScreen();
+      const expandColumns = Math.max(columnsPerScreen, Math.ceil(this.scrollStepDays / 7) * 2);
+      this.viewportEnd = interval.offset(this.viewportEnd, expandColumns);
+      this.renderChart();
+    }
+
+    const maxScroll = wrapper.scrollWidth - wrapper.clientWidth;
+    targetScroll = Math.max(0, Math.min(maxScroll > 0 ? maxScroll : targetScroll, targetScroll));
+
+    // Smoothly scroll container to the target position
+    wrapper.scrollTo({ left: targetScroll, behavior: 'smooth' });
+
+    // Update slider drag percent immediately for instant UI responsiveness
+    if (maxScroll > 0) {
+      this.timelineScrollPercent = Math.min(100, Math.max(0, (targetScroll / maxScroll) * 100));
+    }
+    this.updateVisibleDateRange(targetScroll);
     this.checkInfiniteScroll();
+    this.cdr.markForCheck();
   }
 
   onSliderInput(event: Event): void {
@@ -1522,8 +1599,13 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
     if (!wrapper) return;
     const maxScroll = wrapper.scrollWidth - wrapper.clientWidth;
     if (maxScroll > 0) {
-      wrapper.scrollLeft = (val / 100) * maxScroll;
-      this.updateVisibleDateRange();
+      const rawScroll = (val / 100) * maxScroll;
+      const stepPx = this.getScrollStepPixels();
+      // Snap drag scroll to exact step increments matching scrollStepDays
+      const snappedScroll = Math.round(rawScroll / stepPx) * stepPx;
+      const boundedScroll = Math.max(0, Math.min(maxScroll, snappedScroll));
+      wrapper.scrollLeft = boundedScroll;
+      this.updateVisibleDateRange(boundedScroll);
       this.checkInfiniteScroll();
     }
   }
@@ -1537,15 +1619,16 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
     } else {
       this.timelineScrollPercent = 0;
     }
+    this.updateSliderStep();
     this.updateVisibleDateRange();
   }
 
-  private updateVisibleDateRange(): void {
+  private updateVisibleDateRange(customLeft?: number): void {
     const wrapper = this.ganttWrapperRef?.nativeElement;
     if (!wrapper || !this.xScale) return;
 
-    const leftX = wrapper.scrollLeft;
-    const rightX = wrapper.scrollLeft + wrapper.clientWidth;
+    const leftX = customLeft !== undefined ? customLeft : wrapper.scrollLeft;
+    const rightX = leftX + wrapper.clientWidth;
 
     try {
       const startDate = this.xScale.invert(leftX);
@@ -1597,25 +1680,9 @@ export class WorkOrderTimelineComponent implements OnInit, OnDestroy, AfterViewI
     const { scrollLeft, scrollWidth, clientWidth } = wrapper;
     const buffer = this.COLUMN_MIN_WIDTH * 2;
 
-    // Infinite scroll LEFT (Past dates)
-    if (scrollLeft <= buffer) {
-      this.isExpandingViewport = true;
-      const interval = getInterval(this.timeScale);
-      const columnsPerScreen = getColumnsPerScreen();
-      const prevScrollWidth = scrollWidth;
-      const prevScrollLeft = scrollLeft;
-
-      this.viewportStart = interval.offset(this.viewportStart, -columnsPerScreen);
-      this.renderChart();
-
-      // Smoothly preserve scroll position so content doesn't jump
-      requestAnimationFrame(() => {
-        const addedWidth = wrapper.scrollWidth - prevScrollWidth;
-        wrapper.scrollLeft = prevScrollLeft + addedWidth;
-        this.isExpandingViewport = false;
-      });
-      return;
-    }
+    // Infinite scroll LEFT (Past dates) is disabled:
+    // the timeline starts at the earliest date in the available work orders
+    // and cannot scroll to the left beyond that earliest date.
 
     // Infinite scroll RIGHT (Future dates)
     if (scrollLeft + clientWidth >= scrollWidth - buffer) {
