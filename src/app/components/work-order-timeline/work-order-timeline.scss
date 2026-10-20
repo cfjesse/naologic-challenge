@@ -128,15 +128,15 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
 }
 
 ::ng-deep .ng-select.timescale-select .ng-select-container {
-  border: 1px solid var(--color-border-medium);
+  border: 1px solid var(--color-border-strong, #e8e8f0);
   border-radius: 6px;
-  background: transparent;
+  background: var(--color-bg-card, transparent);
   min-height: 36px;
   height: 36px;
   align-items: center;
 
   &:hover {
-    border-color: #5046e5;
+    border-color: var(--color-brand-primary);
   }
 }
 
@@ -158,29 +158,33 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   font-family: $font-family;
   font-size: 13px;
   font-weight: 600;
-  color: #5046e5;
+  color: var(--color-brand-primary);
 }
 
 ::ng-deep .ng-select.timescale-select .ng-dropdown-panel {
-  border: 1px solid var(--color-border-medium);
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border-strong);
   border-radius: 8px;
   margin-top: 4px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--color-popover-shadow);
 }
 
 ::ng-deep .ng-select.timescale-select .ng-option {
   padding: 8px 12px;
   font-family: $font-family;
   font-size: 13px;
+  background-color: var(--color-bg-card);
+  color: var(--color-text-main);
 
   &.ng-option-selected {
-    background: rgba(80, 70, 229, 0.06);
-    color: #5046e5;
+    background: var(--status-open-bg);
+    color: var(--color-brand-primary);
     font-weight: 600;
   }
 
   &:hover:not(.ng-option-selected) {
     background: var(--color-bg-hover);
+    color: var(--color-text-main);
   }
 }
 
@@ -197,15 +201,15 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
 }
 
 ::ng-deep .ng-select.status-select .ng-select-container {
-  border: 1px solid var(--color-border-medium);
+  border: 1px solid var(--color-border-strong, #e8e8f0);
   border-radius: 6px;
-  background: transparent;
+  background: var(--color-bg-card, transparent);
   min-height: 36px;
   height: 36px;
   align-items: center;
 
   &:hover {
-    border-color: #5046e5;
+    border-color: var(--color-brand-primary);
   }
 }
 
@@ -216,25 +220,29 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
 }
 
 ::ng-deep .ng-select.status-select .ng-dropdown-panel {
-  border: 1px solid var(--color-border-medium);
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border-strong);
   border-radius: 8px;
   margin-top: 4px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--color-popover-shadow);
 }
 
 ::ng-deep .ng-select.status-select .ng-option {
   padding: 8px 12px;
   font-family: $font-family;
   font-size: 13px;
+  background-color: var(--color-bg-card);
+  color: var(--color-text-main);
 
   &.ng-option-selected {
-    background: rgba(80, 70, 229, 0.06);
-    color: #5046e5;
+    background: var(--status-open-bg);
+    color: var(--color-brand-primary);
     font-weight: 600;
   }
 
   &:hover:not(.ng-option-selected) {
     background: var(--color-bg-hover);
+    color: var(--color-text-main);
   }
 }
 
@@ -649,7 +657,7 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
   display: flex;
   flex-direction: column;
   gap: 9px;
-  max-height: 165px;
+  max-height: max-content;
   overflow-y: auto;
   padding-right: 6px;
 }
@@ -1413,228 +1421,228 @@ $font-family: 'Circular-Std', -apple-system, BlinkMacSystemFont, 'Segoe UI', Rob
     }
   }
 
-line.grid-line {
-  stroke: var(--color-border-light);
-  stroke-width: 1px;
-}
-
-line.row-border {
-  stroke: var(--color-border-light);
-  stroke-width: 1px;
-}
-
-line.cursor-line {
-  stroke: #5046e5;
-  stroke-width: 2px;
-  pointer-events: none;
-  /* Let drag events hit the group or handle */
-}
-
-circle.cursor-handle {
-  fill: #5046e5;
-  cursor: ew-resize;
-  transition: r 0.15s ease;
-
-  &:hover {
-    r: 7;
-  }
-}
-
-rect.current-highlight {
-  fill: var(--current-highlight-bg, #fff8e1);
-  fill-opacity: 0.4;
-  pointer-events: none;
-}
-
-rect.grid-overlay {
-  fill: transparent;
-  cursor: pointer;
-}
-
-/* ──────── SVG Headers ──────── */
-rect.header-strip {
-  fill: var(--color-bg-secondary);
-}
-
-rect.header-cell {
-  fill: var(--color-bg-secondary);
-  stroke: var(--color-border-light);
-  stroke-width: 1px;
-
-  &.current-period {
-    fill: var(--current-highlight-bg, #fff8e1);
-  }
-}
-
-text.col-label {
-  fill: var(--color-text-secondary);
-  font-family: $font-family;
-  font-size: 12px;
-  font-weight: 500;
-  user-select: none;
-  pointer-events: none;
-
-  &.current-period {
-    fill: #e6a817;
-    font-weight: 600;
-  }
-}
-
-line.header-border {
-  stroke: var(--color-border-strong);
-  stroke-width: 1px;
-}
-
-/* ──────── SVG Bars ──────── */
-g.bar-group {
-  cursor: grab;
-
-  &:hover {
-    rect.bar-rect {
-      filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.08));
-    }
-
-    text.bar-ellipsis {
-      opacity: 1;
-    }
-  }
-
-  &.dragging {
-    cursor: grabbing;
-    opacity: 0.9;
-  }
-}
-
-rect.bar-rect {
-  transition: all 0.15s ease;
-  stroke-width: 1.5px;
-
-  &.bar-complete {
-    fill: var(--gantt-complete-bg, #ecfdf5);
-    stroke: var(--gantt-complete-stroke, #6ee7b7);
-  }
-
-  &.bar-in-progress {
-    fill: var(--gantt-progress-bg, #eef2ff);
-    stroke: var(--gantt-progress-stroke, #a5b4fc);
-  }
-
-  &.bar-open {
-    fill: var(--gantt-open-bg, #f0f9ff);
-    stroke: var(--gantt-open-stroke, #7dd3fc);
-  }
-
-  &.bar-blocked {
-    fill: var(--gantt-blocked-bg, #fff7ed);
-    stroke: var(--gantt-blocked-stroke, #fdba74);
-  }
-}
-
-rect.status-pill-bg {
-  &.pill-complete {
-    fill: var(--gantt-complete-pill, #d1fae5);
-  }
-
-  &.pill-in-progress {
-    fill: var(--gantt-progress-pill, #e0e7ff);
-  }
-
-  &.pill-open {
-    fill: var(--gantt-open-pill, #e0f2fe);
-  }
-
-  &.pill-blocked {
-    fill: var(--gantt-blocked-pill, #ffedd5);
-  }
-}
-
-rect.resize-handle {
-  fill: transparent;
-  cursor: ew-resize;
-  pointer-events: all;
-  z-index: 10;
-
-  &:hover {
-    cursor: ew-resize;
-  }
-}
-
-.grip-group {
-  pointer-events: none;
-
-  rect.grip-bg {
-    fill: var(--gantt-grip-bg, rgba(0, 0, 0, 0.05));
-    stroke: var(--gantt-grip-stroke, rgba(0, 0, 0, 0.1));
+  line.grid-line {
+    stroke: var(--color-border-light);
     stroke-width: 1px;
-    transition: all 0.2s ease;
   }
 
-  line.grip-line {
-    stroke: var(--gantt-grip-line, rgba(0, 0, 0, 0.2));
+  line.row-border {
+    stroke: var(--color-border-light);
+    stroke-width: 1px;
+  }
+
+  line.cursor-line {
+    stroke: #5046e5;
+    stroke-width: 2px;
+    pointer-events: none;
+    /* Let drag events hit the group or handle */
+  }
+
+  circle.cursor-handle {
+    fill: #5046e5;
+    cursor: ew-resize;
+    transition: r 0.15s ease;
+
+    &:hover {
+      r: 7;
+    }
+  }
+
+  rect.current-highlight {
+    fill: var(--current-highlight-bg, #fff8e1);
+    fill-opacity: 0.4;
+    pointer-events: none;
+  }
+
+  rect.grid-overlay {
+    fill: transparent;
+    cursor: pointer;
+  }
+
+  /* ──────── SVG Headers ──────── */
+  rect.header-strip {
+    fill: var(--color-bg-secondary);
+  }
+
+  rect.header-cell {
+    fill: var(--color-bg-secondary);
+    stroke: var(--color-border-light);
+    stroke-width: 1px;
+
+    &.current-period {
+      fill: var(--current-highlight-bg, #fff8e1);
+    }
+  }
+
+  text.col-label {
+    fill: var(--color-text-secondary);
+    font-family: $font-family;
+    font-size: 12px;
+    font-weight: 500;
+    user-select: none;
+    pointer-events: none;
+
+    &.current-period {
+      fill: #e6a817;
+      font-weight: 600;
+    }
+  }
+
+  line.header-border {
+    stroke: var(--color-border-strong);
+    stroke-width: 1px;
+  }
+
+  /* ──────── SVG Bars ──────── */
+  g.bar-group {
+    cursor: grab;
+
+    &:hover {
+      rect.bar-rect {
+        filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.08));
+      }
+
+      text.bar-ellipsis {
+        opacity: 1;
+      }
+    }
+
+    &.dragging {
+      cursor: grabbing;
+      opacity: 0.9;
+    }
+  }
+
+  rect.bar-rect {
+    transition: all 0.15s ease;
     stroke-width: 1.5px;
-    stroke-linecap: round;
-  }
-}
 
-g.bar-group:hover {
-  .grip-group rect.grip-bg {
-    fill: var(--color-brand-primary);
-    opacity: 0.15;
-    stroke: var(--color-brand-primary);
-  }
+    &.bar-complete {
+      fill: var(--gantt-complete-bg, #ecfdf5);
+      stroke: var(--gantt-complete-stroke, #6ee7b7);
+    }
 
-  .grip-group line.grip-line {
-    stroke: var(--color-brand-primary);
-  }
-}
+    &.bar-in-progress {
+      fill: var(--gantt-progress-bg, #eef2ff);
+      stroke: var(--gantt-progress-stroke, #a5b4fc);
+    }
 
-text.bar-title {
-  fill: var(--gantt-bar-title, #0f172a);
-  font-family: $font-family;
-  font-size: 13px;
-  font-weight: 600;
-  pointer-events: none;
-  user-select: none;
-}
+    &.bar-open {
+      fill: var(--gantt-open-bg, #f0f9ff);
+      stroke: var(--gantt-open-stroke, #7dd3fc);
+    }
 
-text.bar-status-label {
-  font-family: $font-family;
-  font-size: 11px;
-  font-weight: 600;
-  pointer-events: none;
-  user-select: none;
-
-  &.status-complete {
-    fill: var(--gantt-complete-text, #065f46);
+    &.bar-blocked {
+      fill: var(--gantt-blocked-bg, #fff7ed);
+      stroke: var(--gantt-blocked-stroke, #fdba74);
+    }
   }
 
-  &.status-in-progress {
-    fill: var(--gantt-progress-text, #3730a3);
+  rect.status-pill-bg {
+    &.pill-complete {
+      fill: var(--gantt-complete-pill, #d1fae5);
+    }
+
+    &.pill-in-progress {
+      fill: var(--gantt-progress-pill, #e0e7ff);
+    }
+
+    &.pill-open {
+      fill: var(--gantt-open-pill, #e0f2fe);
+    }
+
+    &.pill-blocked {
+      fill: var(--gantt-blocked-pill, #ffedd5);
+    }
   }
 
-  &.status-open {
-    fill: var(--gantt-open-text, #0369a1);
+  rect.resize-handle {
+    fill: transparent;
+    cursor: ew-resize;
+    pointer-events: all;
+    z-index: 10;
+
+    &:hover {
+      cursor: ew-resize;
+    }
   }
 
-  &.status-blocked {
-    fill: var(--gantt-blocked-text, #9a3412);
-  }
-}
+  .grip-group {
+    pointer-events: none;
 
-text.bar-ellipsis {
-  fill: #8b8fa3;
-  font-family: $font-family;
-  font-size: 18px;
-  font-weight: 700;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  user-select: none;
+    rect.grip-bg {
+      fill: var(--gantt-grip-bg, rgba(0, 0, 0, 0.05));
+      stroke: var(--gantt-grip-stroke, rgba(0, 0, 0, 0.1));
+      stroke-width: 1px;
+      transition: all 0.2s ease;
+    }
 
-  &:hover {
-    fill: var(--color-brand-primary);
+    line.grip-line {
+      stroke: var(--gantt-grip-line, rgba(0, 0, 0, 0.2));
+      stroke-width: 1.5px;
+      stroke-linecap: round;
+    }
   }
-}
+
+  g.bar-group:hover {
+    .grip-group rect.grip-bg {
+      fill: var(--color-brand-primary);
+      opacity: 0.15;
+      stroke: var(--color-brand-primary);
+    }
+
+    .grip-group line.grip-line {
+      stroke: var(--color-brand-primary);
+    }
+  }
+
+  text.bar-title {
+    fill: var(--gantt-bar-title, #0f172a);
+    font-family: $font-family;
+    font-size: 13px;
+    font-weight: 600;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  text.bar-status-label {
+    font-family: $font-family;
+    font-size: 11px;
+    font-weight: 600;
+    pointer-events: none;
+    user-select: none;
+
+    &.status-complete {
+      fill: var(--gantt-complete-text, #065f46);
+    }
+
+    &.status-in-progress {
+      fill: var(--gantt-progress-text, #3730a3);
+    }
+
+    &.status-open {
+      fill: var(--gantt-open-text, #0369a1);
+    }
+
+    &.status-blocked {
+      fill: var(--gantt-blocked-text, #9a3412);
+    }
+  }
+
+  text.bar-ellipsis {
+    fill: #8b8fa3;
+    font-family: $font-family;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    user-select: none;
+
+    &:hover {
+      fill: var(--color-brand-primary);
+    }
+  }
 }
 
 /* ──────── Ellipsis Dropdown Menu ──────── */
@@ -2555,4 +2563,4 @@ text.bar-ellipsis {
       display: none; // Keep Gantt view unobstructed in compact mobile landscape
     }
   }
-}
+}

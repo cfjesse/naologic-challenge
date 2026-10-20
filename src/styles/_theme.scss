@@ -447,11 +447,306 @@ $theme-dark: (
   }
 }
 
-/* ─── 7. Main Entry Loader Mixin ─── */
+/* ─── 7. ng-select Theme Styling (Light & Dark) ─── */
+@mixin theme-ng-select {
+  /* Base ng-select control */
+  .ng-select {
+    font-family: inherit;
+
+    .ng-select-container {
+      background-color: var(--color-bg-card);
+      border: 1px solid var(--color-border-strong);
+      border-radius: 6px;
+      color: var(--color-text-main);
+      min-height: 38px;
+      transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+
+      .ng-value-container {
+        padding-left: 10px;
+
+        .ng-placeholder {
+          color: var(--color-text-secondary);
+        }
+
+        .ng-value {
+          color: var(--color-text-main);
+        }
+
+        .ng-input > input {
+          color: var(--color-text-main);
+          font-family: inherit;
+        }
+      }
+
+      &:hover {
+        border-color: var(--color-brand-primary);
+      }
+    }
+
+    &.ng-select-opened > .ng-select-container {
+      background-color: var(--color-bg-card);
+      border-color: var(--color-brand-primary);
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+    }
+
+    &.ng-select-focused:not(.ng-select-opened) > .ng-select-container {
+      border-color: var(--color-brand-primary);
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+    }
+
+    &.ng-select-disabled > .ng-select-container {
+      background-color: var(--color-bg-subtle);
+      border-color: var(--color-border-subtle);
+      color: var(--color-text-secondary);
+      opacity: 0.7;
+    }
+
+    /* Arrow icon */
+    .ng-arrow-wrapper {
+      padding-right: 8px;
+
+      .ng-arrow {
+        border-color: var(--color-text-secondary) transparent transparent;
+        border-style: solid;
+        border-width: 5px 5px 2.5px;
+        transition: border-color 0.15s ease;
+      }
+
+      &:hover .ng-arrow {
+        border-top-color: var(--color-brand-primary);
+      }
+    }
+
+    &.ng-select-opened > .ng-select-container .ng-arrow {
+      border-color: transparent transparent var(--color-brand-primary);
+      border-width: 0 5px 5px;
+    }
+
+    /* Clear icon */
+    .ng-clear-wrapper {
+      color: var(--color-text-secondary);
+
+      &:hover .ng-clear {
+        color: var(--color-text-danger, #ef4444);
+      }
+    }
+
+    /* Multiple select badges */
+    &.ng-select-multiple .ng-select-container .ng-value-container .ng-value {
+      background-color: var(--status-open-bg);
+      border: 1px solid var(--status-open-border);
+      color: var(--color-brand-primary);
+      border-radius: 4px;
+      font-weight: 500;
+      padding: 2px 6px;
+
+      .ng-value-icon {
+        color: var(--color-brand-primary);
+
+        &:hover {
+          background-color: rgba(99, 102, 241, 0.2);
+        }
+      }
+    }
+  }
+
+  /* Dropdown Panel */
+  .ng-dropdown-panel {
+    background-color: var(--color-bg-card);
+    border: 1px solid var(--color-border-strong);
+    border-radius: 8px;
+    box-shadow: var(--color-popover-shadow);
+    margin-top: 4px;
+    margin-bottom: 4px;
+    overflow: hidden;
+
+    &.ng-select-bottom {
+      border-bottom-right-radius: 8px;
+      border-bottom-left-radius: 8px;
+      border-top-color: var(--color-border-medium);
+    }
+
+    &.ng-select-top {
+      border-top-right-radius: 8px;
+      border-top-left-radius: 8px;
+      border-bottom-color: var(--color-border-medium);
+    }
+
+    .ng-dropdown-header {
+      border-bottom: 1px solid var(--color-border-subtle);
+      color: var(--color-text-secondary);
+      padding: 6px 12px;
+      font-weight: 600;
+    }
+
+    .ng-dropdown-footer {
+      border-top: 1px solid var(--color-border-subtle);
+      color: var(--color-text-secondary);
+      padding: 6px 12px;
+    }
+
+    .ng-dropdown-panel-items {
+      .ng-optgroup {
+        color: var(--color-text-secondary);
+        font-weight: 600;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 8px 12px;
+
+        &.ng-option-marked {
+          background-color: var(--color-bg-hover);
+        }
+
+        &.ng-option-selected {
+          background-color: var(--status-open-bg);
+          color: var(--color-brand-primary);
+        }
+      }
+
+      .ng-option {
+        background-color: var(--color-bg-card);
+        color: var(--color-text-main);
+        padding: 8px 12px;
+        font-size: 13px;
+        transition: background-color 0.15s ease, color 0.15s ease;
+
+        &.ng-option-marked {
+          background-color: var(--color-bg-hover);
+          color: var(--color-text-main);
+        }
+
+        &.ng-option-selected {
+          background-color: var(--status-open-bg);
+          color: var(--color-brand-primary);
+          font-weight: 600;
+
+          &.ng-option-marked {
+            background-color: var(--status-open-bg);
+            color: var(--color-brand-primary);
+          }
+        }
+
+        &.ng-option-disabled {
+          color: var(--color-text-tertiary);
+          cursor: not-allowed;
+        }
+      }
+    }
+  }
+
+  /* Explicit Dark Theme Overrides for high specificity & dark mode contrast */
+  [data-theme='dark'],
+  body.dark-theme {
+    .ng-select {
+      .ng-select-container {
+        background-color: var(--color-bg-secondary);
+        border-color: var(--color-border-strong);
+        color: var(--color-text-main);
+
+        .ng-value-container {
+          .ng-value {
+            color: var(--color-text-main);
+          }
+
+          .ng-placeholder {
+            color: var(--color-text-secondary);
+          }
+
+          .ng-input > input {
+            color: var(--color-text-main);
+          }
+        }
+      }
+
+      &.ng-select-opened > .ng-select-container,
+      &.ng-select-focused:not(.ng-select-opened) > .ng-select-container {
+        border-color: var(--color-brand-primary);
+        box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.25);
+      }
+    }
+
+    .ng-dropdown-panel {
+      background-color: var(--color-bg-card);
+      border-color: var(--color-border-strong);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
+
+      .ng-dropdown-panel-items .ng-option {
+        background-color: var(--color-bg-card);
+        color: var(--color-text-main);
+
+        &.ng-option-marked {
+          background-color: var(--color-bg-hover);
+          color: var(--color-text-main);
+        }
+
+        &.ng-option-selected {
+          background-color: rgba(129, 140, 248, 0.2);
+          color: var(--color-brand-primary);
+        }
+      }
+    }
+  }
+
+  /* Explicit Light Theme Overrides */
+  [data-theme='light'] {
+    .ng-select {
+      .ng-select-container {
+        background-color: #ffffff;
+        border-color: var(--color-border-medium);
+        color: var(--color-text-main);
+
+        .ng-value-container {
+          .ng-value {
+            color: var(--color-text-main);
+          }
+
+          .ng-placeholder {
+            color: var(--color-text-secondary);
+          }
+
+          .ng-input > input {
+            color: var(--color-text-main);
+          }
+        }
+      }
+
+      &.ng-select-opened > .ng-select-container,
+      &.ng-select-focused:not(.ng-select-opened) > .ng-select-container {
+        border-color: var(--color-brand-primary);
+        box-shadow: 0 0 0 2px rgba(80, 70, 229, 0.15);
+      }
+    }
+
+    .ng-dropdown-panel {
+      background-color: #ffffff;
+      border-color: var(--color-border-medium);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+
+      .ng-dropdown-panel-items .ng-option {
+        background-color: #ffffff;
+        color: var(--color-text-main);
+
+        &.ng-option-marked {
+          background-color: var(--color-bg-hover);
+          color: var(--color-text-main);
+        }
+
+        &.ng-option-selected {
+          background-color: rgba(80, 70, 229, 0.08);
+          color: var(--color-brand-primary);
+        }
+      }
+    }
+  }
+}
+
+/* ─── 8. Main Entry Loader Mixin ─── */
 @mixin load-theme {
   @include theme-root-variables;
   @include theme-dark-variables;
   @include theme-global-overrides;
+  @include theme-ng-select;
 }
 
 /* ─── 8. Theme Utility Classes ─── */
